@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="testColor">#B3E91E63</color>
+    <color name="colorError">#E91E63</color>
+    <color name="colorErrorDark">#8F113C</color>
+
+    <!-- DayLight theme -->
+    <color name="dlColorAccent">#0165C9</color>
+    <color name="dlColorAccentDark">#001BBC</color>
+    <color name="dlColorAccentLight">#4964FF</color>
+    <color name="dlColorAccentLightest">#B4BFFF</color>
+
+
+    <color name="dlColorText">#000</color>
+    <color name="dlColorTextDim">#222</color>
+
+    <color name="dlColorGray1">#FFF</color>
+    <color name="dlColorGray2">#E2E2E2</color>
+    <color name="dlColorGray3">#D2D2D6</color>
+    <color name="dlColorGray4">#C2C2C6</color>
+    <color name="dlColorGray5">#B3B3B6</color>
+    <color name="dlColorGray10">#606060</color>
+
+    <!-- DawnDark theme -->
+    <color name="ddColorAccent">#22B14C</color>
+    <color name="ddColorAccentDark">#348537</color>
+    <color name="ddColorAccentLight">#60D564</color>
+    <color name="ddColorAccentLightest">#CCFFCE</color>
+
+    <color name="ddColorText">#fff</color>
+    <color name="ddColorTextDim">#ddd</color>
+
+    <color name="ddColorGray1">#555F6C</color>
+    <color name="ddColorGray2">#454d56</color>
+    <color name="ddColorGray3">#343C45</color>
+    <color name="ddColorGray4">#1A212B</color>
+    <color name="ddColorGray5">#141B23</color>
+    <color name="ddColorGray10">#999999</color>
+
+</resources>

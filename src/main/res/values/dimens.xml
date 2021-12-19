@@ -1,0 +1,26 @@
+<resources>
+    <!--    General layout spacing-->
+    <dimen name="spacePrimary">10dp</dimen>
+    <dimen name="spacePrimaryDouble">20dp</dimen>
+    <dimen name="spacePrimaryHalf">5dp</dimen>
+    <dimen name="spacePrimaryQuarter">2.5dp</dimen>
+    <dimen name="spaceTiny">2dp</dimen>
+    <dimen name="spaceSmall">15dp</dimen>
+    <dimen name="spaceBig">40dp</dimen>
+    <dimen name="spaceBigger">60dp</dimen>
+    <dimen name="spaceHuge">80dp</dimen>
+    <dimen name="spaceFloatingBtn">16dp</dimen>
+
+    <!--    General layout font size-->
+    <dimen name="fontSizeQuestion">16sp</dimen>
+    <dimen name="fontSizeH1">42sp</dimen>
+    <dimen name="fontSizeH2">28sp</dimen>
+    <dimen name="fontSizeH3">20sp</dimen>
+    <dimen name="fontSizeH4">16sp</dimen>
+    <dimen name="fontSizeNormal">16sp</dimen>
+    <dimen name="fontSizeSmall">10sp</dimen>
+
+    <dimen name="elevationHeight">3dp</dimen>
+    <dimen name="cornerRoundRadius">15dp</dimen>
+    <dimen name="cornerRoundRadiusTiny">3dp</dimen>
+</resources>

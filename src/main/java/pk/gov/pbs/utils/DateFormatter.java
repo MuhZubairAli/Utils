@@ -4,13 +4,16 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 public class DateFormatter {
     public static Calendar calendar = Calendar.getInstance();
     protected static SimpleDateFormat fromFormatter = null;
     protected static SimpleDateFormat toFormatter = null;
+    private static Map<String, SimpleDateFormat> cache = new HashMap<>();
 
     private static String formatDateCached(String fromFormat, String toFormat, String subject){
         if(fromFormatter == null)
@@ -60,6 +63,19 @@ public class DateFormatter {
         try {
             Date ts = new Date(Long.parseLong(unix*1000L+""));
             return toFormatter.format(ts);
+        } catch (NullPointerException e) {
+            e.printStackTrace();
+            return unix + "";
+        }
+    }
+
+    public static String formatDate(long unix, String format){
+        if(!cache.containsKey(format))
+            cache.put(format, new SimpleDateFormat(format, Locale.UK));
+
+        try {
+            Date ts = new Date(Long.parseLong(unix*1000L+""));
+            return cache.get(format).format(ts);
         } catch (NullPointerException e) {
             e.printStackTrace();
             return unix + "";

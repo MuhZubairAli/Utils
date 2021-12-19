@@ -483,7 +483,7 @@ public class FileManager {
         }
     }
 
-    private String readFile(File file) throws IOException{
+    public String readFile(File file) throws IOException{
         FileInputStream fis = new FileInputStream(file);
 
         // Instantiate a buffer reader. (Buffer )
