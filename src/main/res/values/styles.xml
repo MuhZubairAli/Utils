@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="AlertDialogTheme" parent="ThemeOverlay.AppCompat.Dialog.Alert">
-        <item name="android:windowBackground">@drawable/dl_gradient_primary</item>
+        <item name="android:windowBackground">@drawable/gradient_primary_dialogue</item>
     </style>
 
     <!-- Text Styles -->
