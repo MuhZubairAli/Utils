@@ -280,11 +280,11 @@ public abstract class CustomActivity extends AppCompatActivity {
     }
 
     protected void setActivityTitle(@NonNull String subtitle){
-        setActivityTitle(getString(R.string.default_title),subtitle);
+        setActivityTitle(getString(R.string.app_name),subtitle);
     }
 
     protected void setActivityTitle(int subtitle){
-        setActivityTitle(getString(R.string.default_title),getString(subtitle));
+        setActivityTitle(getString(R.string.app_name),getString(subtitle));
     }
 
     @Override
