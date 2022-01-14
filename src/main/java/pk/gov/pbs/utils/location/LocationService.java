@@ -2,6 +2,7 @@ package pk.gov.pbs.utils.location;
 
 import android.Manifest;
 import android.app.Notification;
+import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -21,11 +22,12 @@ import androidx.core.app.NotificationCompat;
 import java.util.HashMap;
 
 import pk.gov.pbs.utils.Constants;
+import pk.gov.pbs.utils.CustomActivity;
 import pk.gov.pbs.utils.R;
 import pk.gov.pbs.utils.exceptions.InvalidIndexException;
 
 public class LocationService extends Service implements LocationListener {
-    private static final String TAG = "LocationService";
+    private static final String TAG = ":Utils] LocationService";
     public static final String BROADCAST_ACTION_PROVIDER_DISABLED = LocationService.class.getCanonicalName() + ".ProviderDisabled";
     public static final String BROADCAST_ACTION_LOCATION_CHANGED = LocationService.class.getCanonicalName() + ".LocationChanged";
     public static final String BROADCAST_EXTRA_LOCATION_PARCEL = "currentLocation";
@@ -42,6 +44,58 @@ public class LocationService extends Service implements LocationListener {
 
     protected LocationManager mLocationManager;
     protected Location mLocation;
+
+    @Override
+    public void onCreate() {
+        if (Constants.DEBUG_MODE)
+            Log.d(TAG, "onCreate: Location service created");
+        super.onCreate();
+        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+        isGPSEnabled = mLocationManager
+                .isProviderEnabled(LocationManager.GPS_PROVIDER);
+        isNetworkEnabled = mLocationManager
+                .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+        if (Constants.DEBUG_MODE)
+            Log.d(TAG, "onStartCommand: requesting location updates");
+        requestLocationUpdates();
+    }
+
+    @Override
+    public int onStartCommand(Intent intent, int flags, int startId) {
+        Notification notification = new NotificationCompat.Builder(this, Constants.Notification_Channel_ID)
+                .setContentTitle("Location Service")
+                .setContentText("Device location is being observed")
+                .setSmallIcon(R.drawable.ic_location)
+//                .setContentIntent(
+//                        PendingIntent.getActivity(
+//                                this, 0,
+//                                new Intent(this, CustomActivity.class),
+//                                0
+//                        )
+//                )
+                .build();
+
+        startForeground(SERVICE_NOTIFICATION_ID, notification);
+        return START_STICKY;
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        mLocationManager.removeUpdates(this);
+    }
+
+    @Override
+    public void onTaskRemoved(Intent rootIntent) {
+        super.onTaskRemoved(rootIntent);
+        stopSelf();
+    }
+
+    @Nullable
+    @Override
+    public IBinder onBind(Intent intent) {
+        return mBinder;
+    }
 
     public Location getLocation() {
         return mLocation;
@@ -159,51 +213,6 @@ public class LocationService extends Service implements LocationListener {
             }
         }
         return false;
-    }
-
-    @Override
-    public void onCreate() {
-        if (Constants.DEBUG_MODE)
-            Log.d(TAG, "onCreate: Location service created");
-        super.onCreate();
-        mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        isGPSEnabled = mLocationManager
-                .isProviderEnabled(LocationManager.GPS_PROVIDER);
-        isNetworkEnabled = mLocationManager
-                .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        if (Constants.DEBUG_MODE)
-            Log.d(TAG, "onStartCommand: requesting location updates");
-        requestLocationUpdates();
-    }
-
-    @Override
-    public int onStartCommand(Intent intent, int flags, int startId) {
-        Notification notification = new NotificationCompat.Builder(this, Constants.Notification_Channel_ID)
-                .setContentTitle("Location Service")
-                .setContentText("Current location is being observed")
-                .setSmallIcon(R.drawable.ic_location)
-                .build();
-
-        startForeground(SERVICE_NOTIFICATION_ID, notification);
-        return START_STICKY;
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        mLocationManager.removeUpdates(this);
-    }
-
-    @Override
-    public void onTaskRemoved(Intent rootIntent) {
-        super.onTaskRemoved(rootIntent);
-        stopSelf();
-    }
-
-    @Nullable
-    @Override
-    public IBinder onBind(Intent intent) {
-        return mBinder;
     }
 
     public class LocationServiceBinder extends Binder {
