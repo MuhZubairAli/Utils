@@ -41,7 +41,7 @@ import pk.gov.pbs.utils.location.ILocationChangeCallback;
 import pk.gov.pbs.utils.location.LocationService;
 
 public abstract class CustomActivity extends AppCompatActivity {
-    private static final String TAG = "[:Utils] CustomActivity";
+    private static final String TAG = ":Utils] CustomActivity";
     private static final int mSystemControlsHideFlags =
             View.SYSTEM_UI_FLAG_LOW_PROFILE
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
