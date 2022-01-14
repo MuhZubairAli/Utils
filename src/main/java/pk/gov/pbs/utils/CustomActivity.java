@@ -35,11 +35,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
+
+import pk.gov.pbs.utils.exceptions.InvalidIndexException;
 import pk.gov.pbs.utils.location.ILocationChangeCallback;
 import pk.gov.pbs.utils.location.LocationService;
 
 public abstract class CustomActivity extends AppCompatActivity {
-    private static final String TAG = "CustomActivity";
+    private static final String TAG = "[:Utils] CustomActivity";
     private static final int mSystemControlsHideFlags =
             View.SYSTEM_UI_FLAG_LOW_PROFILE
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -52,27 +54,46 @@ public abstract class CustomActivity extends AppCompatActivity {
     private static final int PERMISSIONS_REQUEST_CODE_LOCATION = 100;
     private boolean IS_LOCATION_SERVICE_BOUND = false;
     private boolean USING_LOCATION_SERVICE = false;
-    protected UXToolkit mUXToolkit;
     private ActionBar actionBar;
     private AlertDialog dialogLocationSettings;
 
     private Runnable mAfterLocationServiceStartCallback;
     private Intent locationServiceIntent = null;
-    protected LocationService mLocationService = null;
-    protected ServiceConnection mLocationServiceConnection = null;
+    private LocationService mLocationService = null;
+    private ServiceConnection mLocationServiceConnection = null;
     private BroadcastReceiver GPS_PROVIDER_ACCESS = null;
+    private static byte mLocationAttachAttempts = 0;
 
     private HashMap<String, String[]> mPermissions;
-    protected static final String permissionKeyLocation = "location";
-    protected static final String permissionKeyStorage = "storage";
+    protected UXToolkit mUXToolkit;
+    private static final String permissionKeyLocation = "location";
+    private static final String permissionKeyStorage = "storage";
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        init();
-        checkAllPermissions();
+        initialize();
     }
 
-    private void init(){
+    @Override
+    protected void onPostResume() {
+        super.onPostResume();
+        if (USING_LOCATION_SERVICE) {
+            if (mLocationService != null) {
+                if (!mLocationService.isNetworkEnabled() && !mLocationService.isGPSEnabled())
+                    showAlertLocationSettings();
+            }
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (USING_LOCATION_SERVICE)
+            stopLocationService();
+    }
+
+    private void initialize(){
         mUXToolkit = new UXToolkit(this);
 
         mPermissions = new HashMap<>();
@@ -85,6 +106,28 @@ public abstract class CustomActivity extends AppCompatActivity {
                 showAlertLocationSettings();
             }
         };
+
+        mLocationServiceConnection = new ServiceConnection() {
+            @Override
+            public void onServiceConnected(ComponentName name, IBinder service) {
+                LocationService.LocationServiceBinder binder = (LocationService.LocationServiceBinder) service;
+                mLocationService = binder.getService();
+
+                if (!mLocationService.isNetworkEnabled() && !mLocationService.isGPSEnabled())
+                    showAlertLocationSettings();
+
+                if (mAfterLocationServiceStartCallback != null)
+                    mAfterLocationServiceStartCallback.run();
+            }
+
+            @Override
+            public void onServiceDisconnected(ComponentName name) {
+                mLocationService = null;
+                USING_LOCATION_SERVICE = false;
+            }
+        };
+
+        checkAllPermissions();
     }
 
     protected void showActionBar(){
@@ -133,24 +176,6 @@ public abstract class CustomActivity extends AppCompatActivity {
         });
     }
 
-    @Override
-    protected void onPostResume() {
-        super.onPostResume();
-        if (USING_LOCATION_SERVICE) {
-            if (mLocationService != null) {
-                if (!mLocationService.isNetworkEnabled() && !mLocationService.isGPSEnabled())
-                    showAlertLocationSettings();
-            }
-        }
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (USING_LOCATION_SERVICE)
-            stopLocationService();
-    }
-
     public UXToolkit getUXToolkit(){
         return mUXToolkit;
     }
@@ -161,29 +186,33 @@ public abstract class CustomActivity extends AppCompatActivity {
         return mLayoutInflater;
     }
 
+    protected LocationService getLocationService(){
+        return mLocationService;
+    }
+
+    public void addLocationChangeCallback(String index, ILocationChangeCallback callback) {
+        StaticUtils.getHandler().postDelayed(()-> {
+            if (getLocationService() != null) {
+                try {
+                    getLocationService().addLocationChangeListener(index, callback);
+                } catch (InvalidIndexException e) {
+                    ExceptionReporter.printStackTrace(e);
+                    Log.e(TAG, e.getMessage(), e);
+                }
+            } else {
+                if (++mLocationAttachAttempts >= 5) {
+                    Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
+                    ExceptionReporter.printStackTrace(e);
+                    Log.e(TAG, e.getMessage(), e);
+                    mLocationAttachAttempts = 0;
+                } else
+                    addLocationChangeCallback(index, callback);
+            }
+        },1000);
+    }
+
     protected void startLocationService(){
         Log.d(TAG, "startLocationService: Starting location service");
-        if (mLocationServiceConnection == null) {
-            mLocationServiceConnection = new ServiceConnection() {
-                @Override
-                public void onServiceConnected(ComponentName name, IBinder service) {
-                    LocationService.LocationServiceBinder binder = (LocationService.LocationServiceBinder) service;
-                    mLocationService = binder.getService();
-
-                    if (!mLocationService.isNetworkEnabled() && !mLocationService.isGPSEnabled())
-                        showAlertLocationSettings();
-
-                    if (mAfterLocationServiceStartCallback != null)
-                        mAfterLocationServiceStartCallback.run();
-                }
-
-                @Override
-                public void onServiceDisconnected(ComponentName name) {
-                    mLocationService = null;
-                }
-            };
-        }
-
         if (mLocationService == null) {
             if (locationServiceIntent == null)
                 locationServiceIntent = new Intent(this, LocationService.class);
@@ -210,6 +239,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                 }
                 stopService(locationServiceIntent);
             }
+            USING_LOCATION_SERVICE = false;
         }
     }
 

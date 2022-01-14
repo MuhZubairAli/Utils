@@ -1,9 +1,9 @@
 package pk.gov.pbs.utils.location;
 
 public class FusedLocationHelper {
-    /**
-     * This class requires "compile 'com.google.android.gms:play-services:11.0.0'" in build.gradle file
+    // This class requires "compile 'com.google.android.gms:play-services:11.0.0'" in build.gradle file
 
+    /**
     private static final String TAG = FusedLocationHelper.class.getSimpleName();
     private static FusedLocationHelper INSTANCE;
 
@@ -68,5 +68,5 @@ public class FusedLocationHelper {
     public void stop() {
         mFusedLocationClient.removeLocationUpdates(locationCallback);
     }
-*/
+    */
 }

@@ -22,6 +22,7 @@ import java.util.HashMap;
 
 import pk.gov.pbs.utils.Constants;
 import pk.gov.pbs.utils.R;
+import pk.gov.pbs.utils.exceptions.InvalidIndexException;
 
 public class LocationService extends Service implements LocationListener {
     private static final String TAG = "LocationService";
@@ -43,23 +44,32 @@ public class LocationService extends Service implements LocationListener {
     protected Location mLocation;
 
     public Location getLocation() {
-        if (mLocation == null) {
-            if (
-                    ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                    || ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-            ) {
-                return mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) != null
-                        ? mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
-                        : mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
-            }
-        }
         return mLocation;
     }
 
-    public void addLocationChangeListener(String index, ILocationChangeCallback callback){
+    public Location getLastKnownLocation(){
+        if (
+                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+        ) {
+            return mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) != null
+                    ? mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
+                    : mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
+        }
+        return null;
+    }
+
+    public void addLocationChangeListener(String index, ILocationChangeCallback callback) throws InvalidIndexException {
         if (mOnLocationChangedCallbacks == null)
             mOnLocationChangedCallbacks = new HashMap<>();
+
+        if (mOnLocationChangedCallbacks.containsKey(index))
+            throw new InvalidIndexException(index, "it already exists");
+
         mOnLocationChangedCallbacks.put(index, callback);
+
+        if (mLocation != null)
+            callback.onLocationChange(mLocation);
     }
 
     public void removeLocationChangeListener(String index){
@@ -153,6 +163,8 @@ public class LocationService extends Service implements LocationListener {
 
     @Override
     public void onCreate() {
+        if (Constants.DEBUG_MODE)
+            Log.d(TAG, "onCreate: Location service created");
         super.onCreate();
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
         isGPSEnabled = mLocationManager
@@ -160,10 +172,8 @@ public class LocationService extends Service implements LocationListener {
         isNetworkEnabled = mLocationManager
                 .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
         if (Constants.DEBUG_MODE)
-            Log.d(TAG, "onCreate: Location service created");
-        requestLocationUpdates();
-        if (Constants.DEBUG_MODE)
             Log.d(TAG, "onStartCommand: requesting location updates");
+        requestLocationUpdates();
     }
 
     @Override
