@@ -2,7 +2,6 @@ package pk.gov.pbs.utils.location;
 
 import android.Manifest;
 import android.app.Notification;
-import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
 import android.content.pm.PackageManager;
@@ -22,15 +21,14 @@ import androidx.core.app.NotificationCompat;
 import java.util.HashMap;
 
 import pk.gov.pbs.utils.Constants;
-import pk.gov.pbs.utils.CustomActivity;
 import pk.gov.pbs.utils.R;
 import pk.gov.pbs.utils.exceptions.InvalidIndexException;
 
 public class LocationService extends Service implements LocationListener {
     private static final String TAG = ":Utils] LocationService";
-    public static final String BROADCAST_ACTION_PROVIDER_DISABLED = LocationService.class.getCanonicalName() + ".ProviderDisabled";
-    public static final String BROADCAST_ACTION_LOCATION_CHANGED = LocationService.class.getCanonicalName() + ".LocationChanged";
-    public static final String BROADCAST_EXTRA_LOCATION_PARCEL = "currentLocation";
+    public static final String BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED = Constants.Location.BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED;
+    public static final String BROADCAST_RECEIVER_ACTION_LOCATION_CHANGED = Constants.Location.BROADCAST_RECEIVER_ACTION_LOCATION_CHANGED;
+    public static final String BROADCAST_EXTRA_LOCATION_DATA = Constants.Location.BROADCAST_EXTRA_LOCATION_DATA;
 
     private static final int SERVICE_NOTIFICATION_ID = 1;
     private HashMap<String, ILocationChangeCallback> mOnLocationChangedCallbacks;
@@ -149,7 +147,7 @@ public class LocationService extends Service implements LocationListener {
     @Override
     public void onProviderDisabled(@NonNull String provider) {
         Intent intent = new Intent();
-        intent.setAction(BROADCAST_ACTION_PROVIDER_DISABLED);
+        intent.setAction(BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED);
         sendBroadcast(intent);
     }
 
@@ -161,8 +159,8 @@ public class LocationService extends Service implements LocationListener {
             mLocation = location;
 
             Intent intent = new Intent();
-            intent.setAction(BROADCAST_ACTION_LOCATION_CHANGED);
-            intent.putExtra(BROADCAST_EXTRA_LOCATION_PARCEL, location);
+            intent.setAction(BROADCAST_RECEIVER_ACTION_LOCATION_CHANGED);
+            intent.putExtra(BROADCAST_EXTRA_LOCATION_DATA, location);
             sendBroadcast(intent);
         }
 
