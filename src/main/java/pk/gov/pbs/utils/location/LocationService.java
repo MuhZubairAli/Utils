@@ -18,10 +18,14 @@ import androidx.annotation.Nullable;
 import androidx.core.app.ActivityCompat;
 import androidx.core.app.NotificationCompat;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 
 import pk.gov.pbs.utils.Constants;
+import pk.gov.pbs.utils.CustomActivity;
 import pk.gov.pbs.utils.R;
+import pk.gov.pbs.utils.StaticUtils;
 import pk.gov.pbs.utils.exceptions.InvalidIndexException;
 
 public class LocationService extends Service implements LocationListener {
@@ -31,8 +35,9 @@ public class LocationService extends Service implements LocationListener {
     public static final String BROADCAST_EXTRA_LOCATION_DATA = Constants.Location.BROADCAST_EXTRA_LOCATION_DATA;
 
     private static final int SERVICE_NOTIFICATION_ID = 1;
-    private HashMap<String, ILocationChangeCallback> mOnLocationChangedCallbacks;
-    private ILocationChangeCallback mSingleRunCallback;
+    private HashMap<String, List<ILocationChangeCallback>> mOnLocationChangedLocalCallbacks;
+    private HashMap<String, ILocationChangeCallback> mOnLocationChangedGlobalCallbacks;
+    private List<ILocationChangeCallback> mListOTCs;
     private final LocationServiceBinder mBinder = new LocationServiceBinder();
     private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10;
     private static final long MIN_TIME_BW_UPDATES = 1000 * 10;
@@ -111,26 +116,52 @@ public class LocationService extends Service implements LocationListener {
         return null;
     }
 
-    public void addLocationChangeListener(String index, ILocationChangeCallback callback) throws InvalidIndexException {
-        if (mOnLocationChangedCallbacks == null)
-            mOnLocationChangedCallbacks = new HashMap<>();
+    public void addLocationChangeGlobalCallback(String index, ILocationChangeCallback callback) throws InvalidIndexException {
+        if (mOnLocationChangedGlobalCallbacks == null)
+            mOnLocationChangedGlobalCallbacks = new HashMap<>();
 
-        if (mOnLocationChangedCallbacks.containsKey(index))
+        if (mOnLocationChangedGlobalCallbacks.containsKey(index))
             throw new InvalidIndexException(index, "it already exists");
 
-        mOnLocationChangedCallbacks.put(index, callback);
+        mOnLocationChangedGlobalCallbacks.put(index, callback);
 
         if (mLocation != null)
             callback.onLocationChange(mLocation);
     }
 
     public void removeLocationChangeListener(String index){
-        if (mOnLocationChangedCallbacks != null)
-            mOnLocationChangedCallbacks.remove(index);
+        if (mOnLocationChangedGlobalCallbacks != null)
+            mOnLocationChangedGlobalCallbacks.remove(index);
     }
 
-    public void setLocationChangedCallback(ILocationChangeCallback changedCallback){
-        mSingleRunCallback = changedCallback;
+    /**
+     * adds One Time Callback to the service
+     * on receiving location it will execute once and then remove it
+     * @param otc one time callback
+     */
+
+    public void addLocationChangedOTC(ILocationChangeCallback otc){
+        if (mListOTCs == null)
+            mListOTCs = new ArrayList<>();
+
+        mListOTCs.add(otc);
+    }
+
+    public void addLocalLocationChangedCallback(CustomActivity context, ILocationChangeCallback changedCallback){
+        if (mOnLocationChangedLocalCallbacks == null)
+            mOnLocationChangedLocalCallbacks = new HashMap<>();
+
+        if (mOnLocationChangedLocalCallbacks.containsKey(context.getLocalClassName()))
+            mOnLocationChangedLocalCallbacks.get(context.getLocalClassName()).add(changedCallback);
+        else {
+            List<ILocationChangeCallback> list = new ArrayList<>();
+            list.add(changedCallback);
+            mOnLocationChangedLocalCallbacks.put(context.getLocalClassName(), list);
+        }
+    }
+
+    public void clearLocalCallbacks(CustomActivity context){
+        mOnLocationChangedLocalCallbacks.remove(context.getLocalClassName());
     }
 
     @Override
@@ -164,15 +195,40 @@ public class LocationService extends Service implements LocationListener {
             sendBroadcast(intent);
         }
 
-        if (mSingleRunCallback != null) {
-            mSingleRunCallback.onLocationChange(location);
-            mSingleRunCallback = null;
+        // Executing OTC
+        if (mListOTCs != null && mListOTCs.size() > 0) {
+            StaticUtils.getHandler().post(()-> {
+                    for (int i=0; i < mListOTCs.size(); i++) {
+                        mListOTCs.get(i).onLocationChange(location);
+                    }
+                    mListOTCs.clear();
+            });
         }
 
-        if (mOnLocationChangedCallbacks != null && mOnLocationChangedCallbacks.size() > 0){
-            for (String callbackIndex : mOnLocationChangedCallbacks.keySet()){
-                mOnLocationChangedCallbacks.get(callbackIndex).onLocationChange(location);
-            }
+        //Executing Local Callbacks
+        if (mOnLocationChangedLocalCallbacks != null && mOnLocationChangedLocalCallbacks.size() > 0) {
+            StaticUtils.getHandler().post(()-> {
+                    for (String groupId : mOnLocationChangedLocalCallbacks.keySet()) {
+                        if (mOnLocationChangedLocalCallbacks.get(groupId).size() > 0) {
+                            for (ILocationChangeCallback callback : mOnLocationChangedLocalCallbacks.get(groupId))
+                                callback.onLocationChange(location);
+                        }
+                    }
+            });
+        }
+
+        //Executing Global Callbacks
+        if (mOnLocationChangedGlobalCallbacks != null && mOnLocationChangedGlobalCallbacks.size() > 0){
+            StaticUtils.getHandler().post(()-> {
+                (new Thread(new Runnable() {
+                    @Override
+                    public void run() {
+                            for (String callbackIndex : mOnLocationChangedGlobalCallbacks.keySet()){
+                                mOnLocationChangedGlobalCallbacks.get(callbackIndex).onLocationChange(location);
+                            }
+                        }
+                })).start();
+            });
         }
     }
 
