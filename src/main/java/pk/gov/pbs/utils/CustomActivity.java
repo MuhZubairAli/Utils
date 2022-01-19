@@ -78,7 +78,8 @@ public abstract class CustomActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        getLocationService().clearLocalCallbacks(this);
+        if (getLocationService() != null)
+            getLocationService().clearLocalCallbacks(this);
     }
 
     /********************
@@ -232,7 +233,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                 } else
                     addLocationChangeCallback(callback);
             }
-        },1000);
+        }, 1000);
     }
 
     public void addLocationChangedOneTimeCallback(ILocationChangeCallback callback) {

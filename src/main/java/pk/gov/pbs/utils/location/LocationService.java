@@ -198,10 +198,10 @@ public class LocationService extends Service implements LocationListener {
         // Executing OTC
         if (mListOTCs != null && mListOTCs.size() > 0) {
             StaticUtils.getHandler().post(()-> {
-                    for (int i=0; i < mListOTCs.size(); i++) {
-                        mListOTCs.get(i).onLocationChange(location);
-                    }
-                    mListOTCs.clear();
+                for (int i=0; i < mListOTCs.size(); i++) {
+                    mListOTCs.get(i).onLocationChange(location);
+                }
+                mListOTCs.clear();
             });
         }
 
@@ -210,8 +210,9 @@ public class LocationService extends Service implements LocationListener {
             StaticUtils.getHandler().post(()-> {
                     for (String groupId : mOnLocationChangedLocalCallbacks.keySet()) {
                         if (mOnLocationChangedLocalCallbacks.get(groupId).size() > 0) {
-                            for (ILocationChangeCallback callback : mOnLocationChangedLocalCallbacks.get(groupId))
+                            for (ILocationChangeCallback callback : mOnLocationChangedLocalCallbacks.get(groupId)) {
                                 callback.onLocationChange(location);
+                            }
                         }
                     }
             });
@@ -224,7 +225,9 @@ public class LocationService extends Service implements LocationListener {
                     @Override
                     public void run() {
                             for (String callbackIndex : mOnLocationChangedGlobalCallbacks.keySet()){
-                                mOnLocationChangedGlobalCallbacks.get(callbackIndex).onLocationChange(location);
+                                StaticUtils.getHandler().post(()-> {
+                                    mOnLocationChangedGlobalCallbacks.get(callbackIndex).onLocationChange(location);
+                                });
                             }
                         }
                 })).start();

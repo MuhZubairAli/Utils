@@ -15,6 +15,10 @@ import android.widget.Toast;
 
 import androidx.annotation.Nullable;
 
+/**
+ * Todo: add functionality to add buttons to progress dialog (i,e for location ProgressDialog after some time show button to use last location)
+ */
+
 public class UXToolkit {
     protected final CustomActivity context;
     protected final LayoutInflater mLayoutInflater;
