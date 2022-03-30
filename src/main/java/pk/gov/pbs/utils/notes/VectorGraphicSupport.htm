@@ -1,0 +1,27 @@
+<b>Important Point in Using Android Vector Drawable</b>
+
+<p>When you are using an android vector drawable and want to have backward compatibility for API below 21, add the following codes to:</p>
+
+<p>In app level build.gradle:</p>
+<blockquote>
+    android {
+        defaultConfig {
+            vectorDrawables.useSupportLibrary = true
+        }
+    }
+</blockquote>
+
+<p>In Application class:</p>
+
+<blockquote>
+    class MyApplication extends Application {
+
+        @Override
+        public void onCreate() {
+            super.onCreate()
+
+            AppCompatDelegate.setCompatVectorFromResourcesEnabled(true)
+        }
+
+    }
+</blockquote>

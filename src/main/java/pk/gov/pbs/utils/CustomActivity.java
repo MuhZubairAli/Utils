@@ -76,6 +76,14 @@ public abstract class CustomActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (getLocationService() != null)
+            getLocationService().clearLocalCallbacks(this);
+    }
+
+    /********************
+    @Override
     protected void onPostResume() {
         super.onPostResume();
         if (USING_LOCATION_SERVICE) {
@@ -92,6 +100,7 @@ public abstract class CustomActivity extends AppCompatActivity {
         if (USING_LOCATION_SERVICE)
             stopLocationService();
     }
+    */
 
     private void initialize(){
         mUXToolkit = new UXToolkit(this);
@@ -190,11 +199,11 @@ public abstract class CustomActivity extends AppCompatActivity {
         return mLocationService;
     }
 
-    public void addLocationChangeCallback(String index, ILocationChangeCallback callback) {
+    public void addLocationChangeGlobalCallback(String index, ILocationChangeCallback callback) {
         StaticUtils.getHandler().postDelayed(()-> {
             if (getLocationService() != null) {
                 try {
-                    getLocationService().addLocationChangeListener(index, callback);
+                    getLocationService().addLocationChangeGlobalCallback(index, callback);
                 } catch (InvalidIndexException e) {
                     ExceptionReporter.printStackTrace(e);
                     Log.e(TAG, e.getMessage(), e);
@@ -206,7 +215,39 @@ public abstract class CustomActivity extends AppCompatActivity {
                     Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
-                    addLocationChangeCallback(index, callback);
+                    addLocationChangeGlobalCallback(index, callback);
+            }
+        },1000);
+    }
+
+    public void addLocationChangeCallback(ILocationChangeCallback callback) {
+        StaticUtils.getHandler().postDelayed(()-> {
+            if (getLocationService() != null) {
+                getLocationService().addLocalLocationChangedCallback(this, callback);
+            } else {
+                if (++mLocationAttachAttempts >= 5) {
+                    Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
+                    ExceptionReporter.printStackTrace(e);
+                    Log.e(TAG, e.getMessage(), e);
+                    mLocationAttachAttempts = 0;
+                } else
+                    addLocationChangeCallback(callback);
+            }
+        }, 1000);
+    }
+
+    public void addLocationChangedOneTimeCallback(ILocationChangeCallback callback) {
+        StaticUtils.getHandler().postDelayed(()-> {
+            if (getLocationService() != null) {
+                getLocationService().addLocationChangedOTC(callback);
+            } else {
+                if (++mLocationAttachAttempts >= 5) {
+                    Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
+                    ExceptionReporter.printStackTrace(e);
+                    Log.e(TAG, e.getMessage(), e);
+                    mLocationAttachAttempts = 0;
+                } else
+                    addLocationChangedOneTimeCallback(callback);
             }
         },1000);
     }
@@ -223,7 +264,7 @@ public abstract class CustomActivity extends AppCompatActivity {
             IS_LOCATION_SERVICE_BOUND = bindService(locationServiceIntent, mLocationServiceConnection, Context.BIND_AUTO_CREATE);
         }
 
-        IntentFilter intentFilter = new IntentFilter(LocationService.BROADCAST_ACTION_PROVIDER_DISABLED);
+        IntentFilter intentFilter = new IntentFilter(LocationService.BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED);
         registerReceiver(GPS_PROVIDER_ACCESS, intentFilter);
         USING_LOCATION_SERVICE = true;
     }
@@ -281,7 +322,7 @@ public abstract class CustomActivity extends AppCompatActivity {
         if (mLocationService.getLocation() == null) {
             mUXToolkit.showProgressDialogue("Getting current location, please wait...");
             if (callback != null)
-                mLocationService.setLocationChangedCallback((location -> {
+                mLocationService.addLocationChangedOTC((location -> {
                     mUXToolkit.dismissProgressDialogue();
                     callback.onLocationChange(location);
                 }));

@@ -52,6 +52,14 @@ public class ThemeUtils {
         a.recycle();
     }
 
+    public static Drawable getDrawableByTheme(Context context, int resId) {
+        TypedArray a = context.getTheme().obtainStyledAttributes(new int[] {resId});
+        int attributeResourceId = a.getResourceId(0, 0);
+        Drawable drawable = context.getResources().getDrawable(attributeResourceId);
+        a.recycle();
+        return drawable;
+    }
+
     public static int getColorByTheme(Context context, int resID){
         TypedValue typedValue = new TypedValue();
         Resources.Theme theme = context.getTheme();
