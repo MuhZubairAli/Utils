@@ -16,6 +16,6 @@ public class Constants {
     public static class Location {
         public static final String BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED = LocationService.class.getCanonicalName() + ".ProviderDisabled";
         public static final String BROADCAST_RECEIVER_ACTION_LOCATION_CHANGED = LocationService.class.getCanonicalName() + ".LocationChanged";
-        public static final String BROADCAST_EXTRA_LOCATION_DATA = Location.class.getCanonicalName() + "currentLocation";
+        public static final String BROADCAST_EXTRA_LOCATION_DATA = Location.class.getCanonicalName() + ".CurrentLocation";
     }
 }

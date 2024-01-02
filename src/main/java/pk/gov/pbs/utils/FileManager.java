@@ -3,11 +3,17 @@ package pk.gov.pbs.utils;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Environment;
+import android.provider.Settings;
 import android.util.Log;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
 import androidx.core.app.ActivityCompat;
 
 import java.io.BufferedReader;
@@ -35,22 +41,62 @@ public class FileManager {
 
     /**
      * Checks if the app has permission to write to device storage
-     * If the app does not has permission then the user will be prompted to grant permissions
+     * For API >= 30 it verifies if has permission to manage all files
      *
      */
-    public void verifyStoragePermissions() {
+    public boolean checkStoragePermissions() {
         int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
         int permission2 = ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE);
 
-        if (permission1 != PackageManager.PERMISSION_GRANTED || permission2 != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(
-                    context,
-                    PERMISSIONS_STORAGE,
-                    REQUEST_EXTERNAL_STORAGE_CODE
-            );
-        }
+        if (permission1 != PackageManager.PERMISSION_GRANTED || permission2 != PackageManager.PERMISSION_GRANTED
+        || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()))
+            return false;
+
+        return true;
     }
 
+    /**
+     * Requests for all storage related permissions
+     * For API >= 30 it opens up the activity to allow current app the permission to manage all files
+     */
+    public void requestStoragePermissions(){
+        StaticUtils.getHandler().post(()->{
+            int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
+            int permission2 = ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE);
+            if (permission1 != PackageManager.PERMISSION_GRANTED || permission2 != PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(
+                        context,
+                        PERMISSIONS_STORAGE,
+                        REQUEST_EXTERNAL_STORAGE_CODE
+                );
+            }
+
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                StaticUtils.getHandler().post(this::requestForFileManagerPermission);
+            }
+        });
+    }
+
+    /**
+     * For API >= 30 this method opens screen for allowing current app to be
+     * Manage Application for All Files Access Permission
+     * This is required for CRUD operations
+     */
+    @RequiresApi(api = Build.VERSION_CODES.R)
+    protected void requestForFileManagerPermission(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()){
+            Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
+            Uri uri = Uri.fromParts("package", context.getPackageName(), null);
+            intent.setData(uri);
+            context.startActivity(intent);
+        }
+
+        StaticUtils.getHandler().post(()->{
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                Toast.makeText(context, "On API 30 and above permission to manage all files is required, Please enable the option of \'Allow access to manage all files\'.", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
     /**
      * @param mode :
      *          Context.MODE_APPEND     --> write more to exist file.
@@ -77,7 +123,7 @@ public class FileManager {
 
             // Add data.
             if(mode == Context.MODE_APPEND) {
-                out.append(data + "\n");
+                out.append(data).append("\n");
             }else {
                 out.write(data);
             }
@@ -191,8 +237,12 @@ public class FileManager {
         File file = new File(folder, fileName);
 
         Log.d(TAG, "File directory: " + file.getAbsolutePath());
-
         try {
+            if (!file.exists()){
+                if(!file.createNewFile())
+                    throw new IOException("Failed to create new file.");
+            }
+
             FileOutputStream fos;
             if(mode == Context.MODE_APPEND) {
                 fos = new FileOutputStream(file, true);
