@@ -83,7 +83,7 @@ public abstract class CustomActivity extends AppCompatActivity {
     }
 
     /********************
-    @Override
+    //@Override
     protected void onPostResume() {
         super.onPostResume();
         if (USING_LOCATION_SERVICE) {
@@ -94,7 +94,7 @@ public abstract class CustomActivity extends AppCompatActivity {
         }
     }
 
-    @Override
+    //@Override
     protected void onDestroy() {
         super.onDestroy();
         if (USING_LOCATION_SERVICE)

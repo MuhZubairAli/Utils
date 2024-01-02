@@ -149,7 +149,7 @@ public class DateFormatter {
 
     public static Date get(int year, int month, int day){
         if(toFormatter == null)
-            toFormatter = new SimpleDateFormat("dd/MM/yyyy", Locale.UK);
+            toFormatter = new SimpleDateFormat("dd/MM/yyyy", Locale.US);
         try {
             return toFormatter.parse(day + "/" + month + "/" + year);
         } catch (ParseException e) {
