@@ -1,4 +1,4 @@
-#Utility Module For Android#
+# Utility Module For Android
 
 This repository contains utility classes for the following Operations
   - Location Service
