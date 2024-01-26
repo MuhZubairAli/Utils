@@ -66,6 +66,7 @@ public abstract class CustomActivity extends AppCompatActivity {
 
     private HashMap<String, String[]> mPermissions;
     protected UXToolkit mUXToolkit;
+    protected FileManager mFileManager;
     private static final String permissionKeyLocation = "location";
     private static final String permissionKeyStorage = "storage";
 
@@ -104,6 +105,7 @@ public abstract class CustomActivity extends AppCompatActivity {
 
     private void initialize(){
         mUXToolkit = new UXToolkit(this);
+        mFileManager = new FileManager(this);
 
         mPermissions = new HashMap<>();
         mPermissions.put(permissionKeyLocation, new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION });
@@ -382,7 +384,7 @@ public abstract class CustomActivity extends AppCompatActivity {
         for (String perm : permissions)
             has = has & ContextCompat.checkSelfPermission(this, perm)
                     == PackageManager.PERMISSION_GRANTED;
-        return has;
+        return has && mFileManager.checkStoragePermissions();
     }
 
     protected void checkAllPermissions() {
@@ -423,6 +425,9 @@ public abstract class CustomActivity extends AppCompatActivity {
                 permissionsArray,
                 PERMISSIONS_REQUEST_CODE_LOCATION
         );
+
+        if(!mFileManager.checkStoragePermissions())
+            mFileManager.requestStoragePermissions();
     }
 
     protected void showAlertAppPermissionsSetting(){

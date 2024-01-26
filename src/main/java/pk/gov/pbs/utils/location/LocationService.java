@@ -3,6 +3,7 @@ package pk.gov.pbs.utils.location;
 import android.Manifest;
 import android.app.Notification;
 import android.app.Service;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.location.Location;
@@ -147,16 +148,16 @@ public class LocationService extends Service implements LocationListener {
         mListOTCs.add(otc);
     }
 
-    public void addLocalLocationChangedCallback(CustomActivity context, ILocationChangeCallback changedCallback){
+    public void addLocalLocationChangedCallback(Context context, ILocationChangeCallback changedCallback){
         if (mOnLocationChangedLocalCallbacks == null)
             mOnLocationChangedLocalCallbacks = new HashMap<>();
 
-        if (mOnLocationChangedLocalCallbacks.containsKey(context.getLocalClassName()))
-            mOnLocationChangedLocalCallbacks.get(context.getLocalClassName()).add(changedCallback);
+        if (mOnLocationChangedLocalCallbacks.containsKey(context.getClass().getSimpleName()))
+            mOnLocationChangedLocalCallbacks.get(context.getClass().getSimpleName()).add(changedCallback);
         else {
             List<ILocationChangeCallback> list = new ArrayList<>();
             list.add(changedCallback);
-            mOnLocationChangedLocalCallbacks.put(context.getLocalClassName(), list);
+            mOnLocationChangedLocalCallbacks.put(context.getClass().getSimpleName(), list);
         }
     }
 

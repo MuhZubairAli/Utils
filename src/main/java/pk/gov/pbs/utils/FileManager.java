@@ -43,6 +43,8 @@ public class FileManager {
      * Checks if the app has permission to write to device storage
      * For API >= 30 it verifies if has permission to manage all files
      *
+     * Returns true if has all permissions other wise returns false which indicates
+     * that one or more permissions regarding storage are not granted
      */
     public boolean checkStoragePermissions() {
         int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);

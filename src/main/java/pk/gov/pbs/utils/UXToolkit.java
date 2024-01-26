@@ -256,7 +256,7 @@ public class UXToolkit {
         }
     }
 
-    private void showProgressDialogue(){
+    public void showProgressDialogue(){
         showProgressDialogue(false);
     }
 
