@@ -19,7 +19,7 @@ public class ThemeUtils {
     public static Typeface getUrduFontTypeFace(Context context) {
         if (mUrduFontFace == null)
             mUrduFontFace = Typeface.createFromAsset(context.getAssets(),
-                    "fonts/Jameel_Noori_Nastaleeq_Kasheeda.ttf");
+                    "fonts/Mehr_Nastaliq_Web_v.2.0.ttf");
         return mUrduFontFace;
     }
 
