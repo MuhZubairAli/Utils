@@ -7,7 +7,7 @@ public class TextUtils {
     /**
      * This method helps creating unordered list from array of strings
      * bullet param specifies bullet style, acceptable characters list could
-     * be found at http://www.elizabethcastro.com/html/extras/entities.html
+     * be found at <a href="https://www.w3schools.com/html/html_symbols.asp">Bullet Character</a>
      * @param bullet bullet style as character code
      * @param strings strings to be converted to <ul></ul>
      * @return Spanned text which could be directly set using TextView.setText()

@@ -162,7 +162,8 @@ public class LocationService extends Service implements LocationListener {
     }
 
     public void clearLocalCallbacks(CustomActivity context){
-        mOnLocationChangedLocalCallbacks.remove(context.getLocalClassName());
+        if (mOnLocationChangedLocalCallbacks != null)
+            mOnLocationChangedLocalCallbacks.remove(context.getLocalClassName());
     }
 
     @Override
