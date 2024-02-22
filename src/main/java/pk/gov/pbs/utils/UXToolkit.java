@@ -156,6 +156,50 @@ public class UXToolkit {
         showAlertDialogue(context.getString(R.string.title_default_alert_dialogue), context.getString(message), null);
     }
 
+    public AlertDialog showConfirmDialogue(String title, String message, String positiveBtnLabel, String negativeBtnLabel, UXEventListeners.ConfirmDialogueEventsListener events){
+        if(Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP){
+            try {
+                Spanned htm = Html.fromHtml(message);
+                AlertDialog dialog = getDialogBuilder()
+                        .setTitle(title)
+                        .setMessage(htm)
+                        .setCancelable(false)
+                        .setPositiveButton(positiveBtnLabel, (dialog1, which) -> {
+                            events.onOK();
+                        })
+                        .setNegativeButton(negativeBtnLabel, (dialog12, which) -> {
+                            events.onCancel();
+                        })
+                        .create();
+
+                dialog.show();
+                return dialog;
+            } catch (Exception e){
+                ExceptionReporter.printStackTrace(e);
+            }
+        } else {
+            try {
+                AlertDialog alert = getDialogBuilder()
+                        .setView(inflateInfoAlertDialogue(title, message))
+                        .setCancelable(false)
+                        .setPositiveButton(
+                                positiveBtnLabel
+                                , (dialog, which) -> events.onOK())
+                        .setNegativeButton(
+                                negativeBtnLabel
+                                , (dialog, which) -> events.onCancel())
+                        .create();
+                alert.show();
+                return alert;
+            } catch (WindowManager.BadTokenException e) {
+                ExceptionReporter.printStackTrace(e);
+            } catch (Exception e) {
+                ExceptionReporter.printStackTrace(e);
+            }
+        }
+        return null;
+    }
+
     public boolean showConfirmDialogue(String title, String message, UXEventListeners.ConfirmDialogueEventsListener events){
         if(Build.VERSION.SDK_INT < Build.VERSION_CODES.LOLLIPOP){
             try {

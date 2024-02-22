@@ -13,7 +13,7 @@ public class DateFormatter {
     public static Calendar calendar = Calendar.getInstance();
     protected static SimpleDateFormat fromFormatter = null;
     protected static SimpleDateFormat toFormatter = null;
-    private static Map<String, SimpleDateFormat> cache = new HashMap<>();
+    private static final Map<String, SimpleDateFormat> cache = new HashMap<>();
 
     private static String formatDateCached(String fromFormat, String toFormat, String subject){
         if(fromFormatter == null)
