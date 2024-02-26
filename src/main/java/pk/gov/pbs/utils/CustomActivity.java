@@ -151,7 +151,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                 actionBar.setCustomView(R.layout.custom_action_bar);
             }
         } catch (NullPointerException npe) {
-            ExceptionReporter.printStackTrace(npe);
+            ExceptionReporter.handle(npe);
         }
     }
 
@@ -172,7 +172,7 @@ public abstract class CustomActivity extends AppCompatActivity {
             }
             actionBar = null; //so that setActivityTitle() would not proceed
         } catch (NullPointerException npe) {
-            ExceptionReporter.printStackTrace(npe);
+            ExceptionReporter.handle(npe);
         }
     }
 
@@ -207,13 +207,13 @@ public abstract class CustomActivity extends AppCompatActivity {
                 try {
                     getLocationService().addLocationChangeGlobalCallback(index, callback);
                 } catch (InvalidIndexException e) {
-                    ExceptionReporter.printStackTrace(e);
+                    ExceptionReporter.handle(e);
                     Log.e(TAG, e.getMessage(), e);
                 }
             } else {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
-                    ExceptionReporter.printStackTrace(e);
+                    ExceptionReporter.handle(e);
                     Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
@@ -229,7 +229,7 @@ public abstract class CustomActivity extends AppCompatActivity {
             } else {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
-                    ExceptionReporter.printStackTrace(e);
+                    ExceptionReporter.handle(e);
                     Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
@@ -245,7 +245,7 @@ public abstract class CustomActivity extends AppCompatActivity {
             } else {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
-                    ExceptionReporter.printStackTrace(e);
+                    ExceptionReporter.handle(e);
                     Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else

@@ -14,7 +14,7 @@ import java.io.UnsupportedEncodingException;
 
 public class SystemUtils {
     public static long getUnixTs(){
-        return (long)(System.currentTimeMillis() / 1000);
+        return System.currentTimeMillis() / 1000;
     }
 
     public static boolean isNetworkAvailable(Context context) {

@@ -119,7 +119,7 @@ public class UXToolkit {
                 if(event != null)
                     event.onOK();
 
-                ExceptionReporter.printStackTrace(e);
+                ExceptionReporter.handle(e);
             }
         });
     }
@@ -175,7 +175,7 @@ public class UXToolkit {
                 dialog.show();
                 return dialog;
             } catch (Exception e){
-                ExceptionReporter.printStackTrace(e);
+                ExceptionReporter.handle(e);
             }
         } else {
             try {
@@ -192,9 +192,9 @@ public class UXToolkit {
                 alert.show();
                 return alert;
             } catch (WindowManager.BadTokenException e) {
-                ExceptionReporter.printStackTrace(e);
+                ExceptionReporter.handle(e);
             } catch (Exception e) {
-                ExceptionReporter.printStackTrace(e);
+                ExceptionReporter.handle(e);
             }
         }
         return null;
@@ -219,7 +219,7 @@ public class UXToolkit {
                 dialog.show();
                 return true;
             } catch (Exception e){
-                ExceptionReporter.printStackTrace(e);
+                ExceptionReporter.handle(e);
                 return false;
             }
         } else {
@@ -239,10 +239,10 @@ public class UXToolkit {
                 alert.show();
                 return true;
             } catch (WindowManager.BadTokenException e) {
-                ExceptionReporter.printStackTrace(e);
+                ExceptionReporter.handle(e);
                 return false;
             } catch (Exception e) {
-                ExceptionReporter.printStackTrace(e);
+                ExceptionReporter.handle(e);
                 return false;
             }
         }
