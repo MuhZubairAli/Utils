@@ -11,6 +11,9 @@ import java.util.concurrent.TimeUnit;
 
 public class DateTimeUtils {
     public static final String defaultDateTimeFormat = "dd/MM/yyyy HH:mm:ss";
+    public static final String defaultDateOnlyFormat = "dd/MM/yyyy";
+    public static final String defaultTimeOnlyFormat = "HH:mm:ss"; //24 hour format
+    public static final String sqlTimestampFormat = "yyyy-MM-dd'T'HH:mm:ss";
     private static Calendar calendar;
     private static final Map<String, SimpleDateFormat> cache = new HashMap<>();
 
@@ -19,7 +22,7 @@ public class DateTimeUtils {
             calendar = Calendar.getInstance();
         return calendar;
     }
-    
+
     /**
      * get current time stamp in unix time
      * @return number of millis since epoch time
@@ -28,16 +31,20 @@ public class DateTimeUtils {
         return System.currentTimeMillis() / 1000;
     }
 
+    public static Date getCurrentDateTime() {
+        return getCalendar().getTime();
+    }
+
     public static String getCurrentDateTime(String format){
         if (!cache.containsKey(format))
-            cache.put(format, new SimpleDateFormat(format));
+            cache.put(format, new SimpleDateFormat(format, Locale.getDefault()));
 
         return cache.get(format).format(getCalendar().getTime());
     }
 
     public static String formatDateTime(String toFormat, long unixTs){
         if(!cache.containsKey(toFormat))
-            cache.put(toFormat, new SimpleDateFormat(toFormat, Locale.UK));
+            cache.put(toFormat, new SimpleDateFormat(toFormat, Locale.getDefault()));
 
         try {
             return cache.get(toFormat).format(getDateFrom(unixTs));
@@ -76,10 +83,10 @@ public class DateTimeUtils {
             return null;
 
         if(!cache.containsKey(fromFormat))
-            cache.put(fromFormat, new SimpleDateFormat(fromFormat, Locale.UK));
+            cache.put(fromFormat, new SimpleDateFormat(fromFormat, Locale.getDefault()));
 
         if(!cache.containsKey(toFormat))
-            cache.put(toFormat, new SimpleDateFormat(toFormat, Locale.UK));
+            cache.put(toFormat, new SimpleDateFormat(toFormat, Locale.getDefault()));
 
         try {
             Date date = cache.get(fromFormat).parse(subject);
@@ -131,7 +138,7 @@ public class DateTimeUtils {
     //============================== Construct Date object from ===================================
     public static Date getDateFrom(String format, String subject){
         if(!cache.containsKey(format))
-            cache.put(format, new SimpleDateFormat(format, Locale.UK));
+            cache.put(format, new SimpleDateFormat(format, Locale.getDefault()));
         try {
             return cache.get(format).parse(subject);
         } catch (ParseException e) {
@@ -147,7 +154,7 @@ public class DateTimeUtils {
     public static Date getDateFrom(int year, int month, int day){
         String format = "dd/MM/yyyy";
         if(!cache.containsKey(format))
-            cache.put(format, new SimpleDateFormat(format, Locale.UK));
+            cache.put(format, new SimpleDateFormat(format, Locale.getDefault()));
         try {
             return cache.get(format).parse(day + "/" + month + "/" + year);
         } catch (ParseException e) {
@@ -157,13 +164,6 @@ public class DateTimeUtils {
     }
 
     //========================== Duration calculations between two dates ==========================
-    public static long getDurationBetweenInYears(Date fromDate, Date toDate) {
-        return TimeUnit
-                .MILLISECONDS
-                .toDays(getDurationBetweenInMillis(fromDate, toDate))
-                / 365L;
-    }
-
     public static long getDurationBetweenInMillis(Date fromDate, Date toDate) {
         long difference_In_Time
                 = toDate.getTime() - fromDate.getTime();
@@ -178,6 +178,17 @@ public class DateTimeUtils {
 
     public static long getDurationBetweenInDays(Date fromDate, Date toDate) {
         return TimeUnit.MILLISECONDS.toDays(getDurationBetweenInMillis(fromDate, toDate));
+    }
+
+    public static long getDurationBetweenInYears(Date fromDate, Date toDate) {
+        return TimeUnit
+                .MILLISECONDS
+                .toDays(getDurationBetweenInMillis(fromDate, toDate))
+                / 365L;
+    }
+
+    public static long getDurationBetweenIn(TimeUnit timeUnit, Date fromDate, Date toDate) {
+        return timeUnit.convert(getDurationBetweenInMillis(fromDate, toDate), TimeUnit.MILLISECONDS);
     }
 
     public static int getLeapYearCount(Date fromDate, Date toDate) {
@@ -197,7 +208,7 @@ public class DateTimeUtils {
     // Function to print difference in (for reference and testing)
     // time start_date and end_date
     private static void printDifference(String start_date, String end_date, String date_format) {
-        SimpleDateFormat sdf = new SimpleDateFormat(date_format);
+        SimpleDateFormat sdf = new SimpleDateFormat(date_format, Locale.getDefault());
         try {
             Date d1 = sdf.parse(start_date);
             Date d2 = sdf.parse(end_date);
