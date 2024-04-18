@@ -1,7 +1,7 @@
 package pk.gov.pbs.utils;
 
 //Todo: Add functionality to write error into a file
-//Todo: Add functionality to also upload error detail is any endpoint has be setup
+//Todo: Add functionality to also upload error detail when endpoint has been setup
 public class ExceptionReporter {
     public static void handle(Throwable exception){
         printStackTrace(exception);

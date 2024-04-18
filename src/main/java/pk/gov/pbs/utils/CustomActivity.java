@@ -25,15 +25,11 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Objects;
 
 import pk.gov.pbs.utils.exceptions.InvalidIndexException;
@@ -64,11 +60,15 @@ public abstract class CustomActivity extends AppCompatActivity {
     private BroadcastReceiver GPS_PROVIDER_ACCESS = null;
     private static byte mLocationAttachAttempts = 0;
 
-    private HashMap<String, String[]> mPermissions;
+    private final String[] mPermissions = {
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION,
+            Manifest.permission.READ_EXTERNAL_STORAGE,
+            Manifest.permission.WRITE_EXTERNAL_STORAGE
+    };
+
     protected UXToolkit mUXToolkit;
     protected FileManager mFileManager;
-    private static final String permissionKeyLocation = "location";
-    private static final String permissionKeyStorage = "storage";
 
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
@@ -83,7 +83,7 @@ public abstract class CustomActivity extends AppCompatActivity {
             getLocationService().clearLocalCallbacks(this);
     }
 
-    /********************
+    /****************
     //@Override
     protected void onPostResume() {
         super.onPostResume();
@@ -101,15 +101,11 @@ public abstract class CustomActivity extends AppCompatActivity {
         if (USING_LOCATION_SERVICE)
             stopLocationService();
     }
-    */
+    //************/
 
     private void initialize(){
         mUXToolkit = new UXToolkit(this);
         mFileManager = new FileManager(this);
-
-        mPermissions = new HashMap<>();
-        mPermissions.put(permissionKeyLocation, new String[]{ Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION });
-        mPermissions.put(permissionKeyStorage, new String[]{ Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE });
 
         GPS_PROVIDER_ACCESS = new BroadcastReceiver() {
             @Override
@@ -155,14 +151,6 @@ public abstract class CustomActivity extends AppCompatActivity {
         }
     }
 
-    protected void showSystemControls(){
-        getWindow().getDecorView().setSystemUiVisibility(
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-        );
-        showActionBar();
-    }
-
     protected void hideActionBar(){
         try {
             actionBar = getSupportActionBar();
@@ -174,6 +162,14 @@ public abstract class CustomActivity extends AppCompatActivity {
         } catch (NullPointerException npe) {
             ExceptionReporter.handle(npe);
         }
+    }
+
+    protected void showSystemControls(){
+        getWindow().getDecorView().setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+                        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        );
+        showActionBar();
     }
 
     protected void hideSystemControls(){
@@ -288,7 +284,7 @@ public abstract class CustomActivity extends AppCompatActivity {
 
     protected Location getLocation(){
         if (mLocationService == null) {
-            if (checkPermissionByKey(permissionKeyLocation)) {
+            if (LocationService.hasPermissions(this)) {
                 startLocationService();
             } else
                 showAlertLocationSettings();
@@ -304,12 +300,16 @@ public abstract class CustomActivity extends AppCompatActivity {
                     location = mLocationService.getLocation();
 
                 if (location == null)
+                    location = mLocationService.getLastKnownLocation();
+
+                if (location == null)
                     location = new Location(LocationManager.GPS_PROVIDER);
 
                 callback.onLocationChange(location);
             }
             return;
         }
+
         if (mLocationService != null) {
             checkLocationAndRunCallback(callback);
         } else {
@@ -320,17 +320,15 @@ public abstract class CustomActivity extends AppCompatActivity {
         }
     }
 
-    private void checkLocationAndRunCallback(ILocationChangeCallback callback){
+    private void checkLocationAndRunCallback(@NonNull ILocationChangeCallback callback){
         if (mLocationService.getLocation() == null) {
             mUXToolkit.showProgressDialogue("Getting current location, please wait...");
-            if (callback != null)
-                mLocationService.addLocationChangedOTC((location -> {
-                    mUXToolkit.dismissProgressDialogue();
-                    callback.onLocationChange(location);
-                }));
+            mLocationService.addLocationChangedOTC((location -> {
+                mUXToolkit.dismissProgressDialogue();
+                callback.onLocationChange(location);
+            }));
         } else {
-            if (callback != null)
-                callback.onLocationChange(mLocationService.getLocation());
+            callback.onLocationChange(mLocationService.getLocation());
         }
     }
 
@@ -370,64 +368,39 @@ public abstract class CustomActivity extends AppCompatActivity {
         }
     }
 
-    private List<String> getAllPermissions(){
-        List<String> allPermissions = new ArrayList<>();
-        for (String key : mPermissions.keySet()){
-            allPermissions.addAll(Arrays.asList(mPermissions.get(key)));
-        }
-        return allPermissions;
-    }
-
     protected boolean hasAllPermissions(){
-        List<String> permissions = getAllPermissions();
         boolean has = true;
-        for (String perm : permissions)
-            has = has & ContextCompat.checkSelfPermission(this, perm)
-                    == PackageManager.PERMISSION_GRANTED;
-        return has && mFileManager.checkStoragePermissions();
+        for (String perm : mPermissions)
+            has &= ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
+
+        return has && mFileManager.hasPermissions();
     }
 
     protected void checkAllPermissions() {
-        List<String> permissions = getAllPermissions();
         boolean proceed = hasAllPermissions();
         if (!proceed) {
-            proceed = false;
-            for (String perm : permissions)
+            for (String perm : mPermissions)
                 proceed = proceed | ActivityCompat.shouldShowRequestPermissionRationale(this, perm);
             if (proceed) {
                 mUXToolkit.buildAlertDialogue(
                         getString(R.string.alert_dialog_location_storage_title)
                         , getString(R.string.alert_dialog_location_storage_message)
                         , getString(R.string.label_btn_ok),
-                        this::askForAllPermissions)
+                        this::requestAllPermissions)
                         .show();
             } else {
                 // No explanation needed, we can request the permission.
-                askForAllPermissions();
+                requestAllPermissions();
             }
         }
     }
 
-    protected boolean checkPermissionByKey(String key){
-        boolean proceed = true;
-        for (String perm : mPermissions.get(key))
-            proceed = proceed & ContextCompat.checkSelfPermission(this, perm)
-                    == PackageManager.PERMISSION_GRANTED;
-        return proceed;
-    }
-
-    private void askForAllPermissions(){
-        List<String> permissionsList = getAllPermissions();
-        String[] permissionsArray = new String[permissionsList.size()];
-        permissionsList.toArray(permissionsArray);
+    private void requestAllPermissions(){
         ActivityCompat.requestPermissions(
                 this,
-                permissionsArray,
+                mPermissions,
                 PERMISSIONS_REQUEST_CODE_LOCATION
         );
-
-        if(!mFileManager.checkStoragePermissions())
-            mFileManager.requestStoragePermissions();
     }
 
     protected void showAlertAppPermissionsSetting(){
@@ -455,7 +428,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                     dialogLocationSettings.show();
             }
         } catch (Exception e){
-            e.printStackTrace();
+            ExceptionReporter.handle(e);
         }
     }
 
@@ -478,7 +451,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                     dialogLocationSettings.show();
             }
         } catch (Exception e){
-            e.printStackTrace();
+            ExceptionReporter.handle(e);
         }
     }
 

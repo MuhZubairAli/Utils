@@ -1,6 +1,8 @@
 package pk.gov.pbs.utils.location;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Notification;
 import android.app.Service;
 import android.content.Context;
@@ -41,7 +43,7 @@ public class LocationService extends Service implements LocationListener {
     private List<ILocationChangeCallback> mListOTCs;
     private final LocationServiceBinder mBinder = new LocationServiceBinder();
     private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10;
-    private static final long MIN_TIME_BW_UPDATES = 1000 * 10;
+    private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 2; // 2 minutes
 
     protected boolean isGPSEnabled = false;
     protected boolean isNetworkEnabled = false;
@@ -49,18 +51,31 @@ public class LocationService extends Service implements LocationListener {
     protected LocationManager mLocationManager;
     protected Location mLocation;
 
+    public static boolean hasPermissions(Context context){
+        return ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    public static void requestPermissions(Activity context){
+        ActivityCompat.requestPermissions(
+                context,
+                new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
+                100
+        );
+    }
+
     @Override
     public void onCreate() {
         if (Constants.DEBUG_MODE)
             Log.d(TAG, "onCreate: Location service created");
+
         super.onCreate();
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        isGPSEnabled = mLocationManager
-                .isProviderEnabled(LocationManager.GPS_PROVIDER);
-        isNetworkEnabled = mLocationManager
-                .isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        if (Constants.DEBUG_MODE)
-            Log.d(TAG, "onStartCommand: requesting location updates");
+        isGPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+        isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+
+        mLocation = getLastKnownLocation();
+
         requestLocationUpdates();
     }
 
@@ -70,13 +85,6 @@ public class LocationService extends Service implements LocationListener {
                 .setContentTitle("Location Service")
                 .setContentText("Device location is being observed")
                 .setSmallIcon(R.drawable.ic_location)
-//                .setContentIntent(
-//                        PendingIntent.getActivity(
-//                                this, 0,
-//                                new Intent(this, CustomActivity.class),
-//                                0
-//                        )
-//                )
                 .build();
 
         startForeground(SERVICE_NOTIFICATION_ID, notification);
@@ -105,11 +113,9 @@ public class LocationService extends Service implements LocationListener {
         return mLocation;
     }
 
+    @SuppressLint("MissingPermission")
     public Location getLastKnownLocation(){
-        if (
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                || ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (hasPermissions(this)) {
             return mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER) != null
                     ? mLocationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER)
                     : mLocationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER);
@@ -140,7 +146,6 @@ public class LocationService extends Service implements LocationListener {
      * on receiving location it will execute once and then remove it
      * @param otc one time callback
      */
-
     public void addLocationChangedOTC(ILocationChangeCallback otc){
         if (mListOTCs == null)
             mListOTCs = new ArrayList<>();
@@ -187,8 +192,9 @@ public class LocationService extends Service implements LocationListener {
     @Override
     public void onLocationChanged(@NonNull Location location) {
         if (Constants.DEBUG_MODE)
-            Log.d(TAG, "onLocationChanged: Location changed : " + location.toString());
-        if (((int) location.getLongitude() != 0 && (int) location.getLatitude() != 0)) {
+            Log.d(TAG, "onLocationChanged: Location changed : " + location);
+
+        if (location.getLongitude() != 0 && location.getLatitude() != 0) {
             mLocation = location;
 
             Intent intent = new Intent();
@@ -208,10 +214,10 @@ public class LocationService extends Service implements LocationListener {
         }
 
         //Executing Local Callbacks
-        if (mOnLocationChangedLocalCallbacks != null && mOnLocationChangedLocalCallbacks.size() > 0) {
+        if (mOnLocationChangedLocalCallbacks != null && !mOnLocationChangedLocalCallbacks.isEmpty()) {
             StaticUtils.getHandler().post(()-> {
                     for (String groupId : mOnLocationChangedLocalCallbacks.keySet()) {
-                        if (mOnLocationChangedLocalCallbacks.get(groupId).size() > 0) {
+                        if (!mOnLocationChangedLocalCallbacks.get(groupId).isEmpty()) {
                             for (ILocationChangeCallback callback : mOnLocationChangedLocalCallbacks.get(groupId)) {
                                 callback.onLocationChange(location);
                             }
@@ -221,7 +227,7 @@ public class LocationService extends Service implements LocationListener {
         }
 
         //Executing Global Callbacks
-        if (mOnLocationChangedGlobalCallbacks != null && mOnLocationChangedGlobalCallbacks.size() > 0){
+        if (mOnLocationChangedGlobalCallbacks != null && !mOnLocationChangedGlobalCallbacks.isEmpty()){
             StaticUtils.getHandler().post(()-> {
                 (new Thread(new Runnable() {
                     @Override
@@ -247,11 +253,12 @@ public class LocationService extends Service implements LocationListener {
         return isNetworkEnabled;
     }
 
+    @SuppressLint("MissingPermission")
     protected boolean requestLocationUpdates() {
-        if (
-                ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                || ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
-        ) {
+        if (Constants.DEBUG_MODE)
+            Log.d(TAG, "requestLocationUpdates: requesting location updates");
+
+        if (hasPermissions(this)) {
             if (isGPSEnabled || isNetworkEnabled) {
                 if (isNetworkEnabled) {
                     mLocationManager.requestLocationUpdates(

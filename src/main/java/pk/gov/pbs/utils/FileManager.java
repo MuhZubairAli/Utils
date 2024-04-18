@@ -46,7 +46,7 @@ public class FileManager {
      * Returns true if has all permissions other wise returns false which indicates
      * that one or more permissions regarding storage are not granted
      */
-    public boolean checkStoragePermissions() {
+    public boolean hasPermissions() {
         int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
         int permission2 = ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE);
 
@@ -61,7 +61,7 @@ public class FileManager {
      * Requests for all storage related permissions
      * For API >= 30 it opens up the activity to allow current app the permission to manage all files
      */
-    public void requestStoragePermissions(){
+    public void requestPermissions(){
         StaticUtils.getHandler().post(()->{
             int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
             int permission2 = ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE);
