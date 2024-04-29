@@ -83,8 +83,7 @@ public abstract class CustomActivity extends AppCompatActivity {
             getLocationService().clearLocalCallbacks(this);
     }
 
-    /****************
-    //@Override
+    @Override
     protected void onPostResume() {
         super.onPostResume();
         if (USING_LOCATION_SERVICE) {
@@ -95,7 +94,8 @@ public abstract class CustomActivity extends AppCompatActivity {
         }
     }
 
-    //@Override
+    /****************
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (USING_LOCATION_SERVICE)
@@ -362,8 +362,11 @@ public abstract class CustomActivity extends AppCompatActivity {
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == PERMISSIONS_REQUEST_CODE_LOCATION) {
-            if (grantResults.length == 0 || grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                showAlertAppPermissionsSetting();
+            for (int gR : grantResults){
+                if (gR == PackageManager.PERMISSION_DENIED){
+                    showAlertAppPermissionsSetting();
+                    return;
+                }
             }
         }
     }
