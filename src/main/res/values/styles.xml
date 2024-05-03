@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AlertDialogTheme" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/gradient_primary_dialogue</item>
+    </style>
+
+    <!-- Text Styles -->
+    <style name="textH3">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textSize">@dimen/fontSizeH3</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:layout_marginBottom">@dimen/spacePrimary</item>
+        <item name="android:textColor">@android:color/black</item>
+    </style>
+
+    <style name="textH4" parent="textH3">
+        <item name="android:textSize">@dimen/fontSizeH4</item>
+        <item name="android:layout_marginBottom">@dimen/spacePrimaryHalf</item>
+    </style>
+
+    <style name="textH5" parent="textH4">
+        <item name="android:textSize">@dimen/fontSizeNormal</item>
+        <item name="android:layout_marginBottom">@dimen/spaceTiny</item>
+    </style>
+
+    <style name="textH6" parent="textH5">
+        <item name="android:textSize">@dimen/fontSizeSmall</item>
+    </style>
+
+</resources>
