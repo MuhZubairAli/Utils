@@ -25,11 +25,13 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Objects;
 
 import pk.gov.pbs.utils.exceptions.InvalidIndexException;
@@ -38,6 +40,8 @@ import pk.gov.pbs.utils.location.LocationService;
 
 public abstract class CustomActivity extends AppCompatActivity {
     private static final String TAG = ":Utils] CustomActivity";
+    private static final int PERMISSIONS_REQUEST_FIRST = 100;
+    private static final int PERMISSIONS_REQUEST_SECOND = 101;
     private static final int mSystemControlsHideFlags =
             View.SYSTEM_UI_FLAG_LOW_PROFILE
                     | View.SYSTEM_UI_FLAG_FULLSCREEN
@@ -46,27 +50,20 @@ public abstract class CustomActivity extends AppCompatActivity {
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
 
-    private LayoutInflater mLayoutInflater;
-    private static final int PERMISSIONS_REQUEST_CODE_LOCATION = 100;
     private boolean IS_LOCATION_SERVICE_BOUND = false;
     private boolean USING_LOCATION_SERVICE = false;
     private ActionBar actionBar;
     private AlertDialog dialogLocationSettings;
 
     private Runnable mAfterLocationServiceStartCallback;
-    private Intent locationServiceIntent = null;
     private LocationService mLocationService = null;
     private ServiceConnection mLocationServiceConnection = null;
     private BroadcastReceiver GPS_PROVIDER_ACCESS = null;
     private static byte mLocationAttachAttempts = 0;
 
-    private final String[] mPermissions = {
-            Manifest.permission.ACCESS_FINE_LOCATION,
-            Manifest.permission.ACCESS_COARSE_LOCATION,
-            Manifest.permission.READ_EXTERNAL_STORAGE,
-            Manifest.permission.WRITE_EXTERNAL_STORAGE
-    };
+    private final List<String> mPermissions = new ArrayList<>();
 
+    private LayoutInflater mLayoutInflater;
     protected UXToolkit mUXToolkit;
     protected FileManager mFileManager;
 
@@ -77,10 +74,83 @@ public abstract class CustomActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onResume() {
+        super.onResume();
+        checkAllPermissions();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (getLocationService() != null)
             getLocationService().clearLocalCallbacks(this);
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        boolean missingPermission = false;
+        for (int gr : grantResults)
+            missingPermission = missingPermission | gr == PackageManager.PERMISSION_DENIED;
+
+        if (requestCode == PERMISSIONS_REQUEST_FIRST && missingPermission) {
+            boolean showRationale = false;
+            for (String perm : permissions)
+                showRationale = showRationale | ActivityCompat.shouldShowRequestPermissionRationale(this, perm);
+
+            if (showRationale) {
+                mUXToolkit.buildAlertDialogue(
+                        getString(R.string.alert_dialog_permission_require_all_title)
+                        , getString(R.string.alert_dialog_permission_require_all_message)
+                        , getString(R.string.label_btn_proceed),
+                        () -> requestAllPermissions(PERMISSIONS_REQUEST_SECOND)).show();
+            } else {
+                // No explanation needed, we can request the permissions.
+                requestAllPermissions(PERMISSIONS_REQUEST_SECOND);
+            }
+        } else if (requestCode == PERMISSIONS_REQUEST_SECOND && missingPermission) {
+            showAlertAppPermissionsSetting();
+        }
+    }
+
+
+    protected void checkAllPermissions(){
+        checkAllPermissions(PERMISSIONS_REQUEST_FIRST);
+    }
+
+    protected void checkAllPermissions(int requestCode) {
+        if (!hasAllPermissions())
+            requestAllPermissions(requestCode);
+    }
+
+    protected boolean hasAllPermissions(){
+        boolean has = true;
+        for (String perm : mPermissions)
+            has &= ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
+
+        return has && FileManager.hasPermissions(this) && LocationService.hasPermissions(this);
+    }
+
+    private void requestAllPermissions(){
+        requestAllPermissions(PERMISSIONS_REQUEST_FIRST);
+    }
+
+    private void requestAllPermissions(int requestCode){
+        String[] permissions = new String[mPermissions.size()];
+        for (int i = 0; i < mPermissions.size(); i++)
+            permissions[i] = mPermissions.get(i);
+        ActivityCompat.requestPermissions(
+                this,
+                permissions,
+                requestCode
+        );
+    }
+
+    //only effective when call from onCreate()
+    //because mPermission is consumed in onResume()
+    protected void askPermissionFor(String permission){
+        mPermissions.add(permission);
     }
 
     /****************
@@ -95,7 +165,7 @@ public abstract class CustomActivity extends AppCompatActivity {
         }
     }
 
-    //@Override
+    @Override
     protected void onDestroy() {
         super.onDestroy();
         if (USING_LOCATION_SERVICE)
@@ -114,27 +184,42 @@ public abstract class CustomActivity extends AppCompatActivity {
             }
         };
 
-        mLocationServiceConnection = new ServiceConnection() {
-            @Override
-            public void onServiceConnected(ComponentName name, IBinder service) {
-                LocationService.LocationServiceBinder binder = (LocationService.LocationServiceBinder) service;
-                mLocationService = binder.getService();
+        mPermissions.addAll(Arrays.asList(
+                Manifest.permission.ACCESS_NETWORK_STATE,
+                Manifest.permission.ACCESS_WIFI_STATE)
+        );
 
-                if (!mLocationService.isNetworkEnabled() && !mLocationService.isGPSEnabled())
-                    showAlertLocationSettings();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            mPermissions.add(Manifest.permission.MANAGE_EXTERNAL_STORAGE);
+            mPermissions.add(Manifest.permission.READ_PRECISE_PHONE_STATE);
+        }
 
-                if (mAfterLocationServiceStartCallback != null)
-                    mAfterLocationServiceStartCallback.run();
-            }
+    }
 
-            @Override
-            public void onServiceDisconnected(ComponentName name) {
-                mLocationService = null;
-                USING_LOCATION_SERVICE = false;
-            }
-        };
+    protected void setActivityTitle(@NonNull String title, @Nullable String subtitle){
+        if(actionBar != null){
+            Spanned htm = Html.fromHtml(title);
+            ((TextView) actionBar.getCustomView().findViewById(R.id.tv_1)).setText(htm);
+            if(subtitle != null)
+                ((TextView) actionBar.getCustomView().findViewById(R.id.tv_2)).setText(subtitle);
+            else
+                ((TextView) actionBar.getCustomView().findViewById(R.id.tv_2)).setVisibility(View.INVISIBLE);
+        }{
+            Objects.requireNonNull(getSupportActionBar())
+                    .setTitle(title);
+        }
+    }
 
-        checkAllPermissions();
+    protected void setActivityTitle(int title, int subtitle){
+        setActivityTitle(getString(title),getString(subtitle));
+    }
+
+    protected void setActivityTitle(@NonNull String subtitle){
+        setActivityTitle(getString(R.string.app_name),subtitle);
+    }
+
+    protected void setActivityTitle(int subtitle){
+        setActivityTitle(getString(R.string.app_name),getString(subtitle));
     }
 
     protected void showActionBar(){
@@ -183,10 +268,8 @@ public abstract class CustomActivity extends AppCompatActivity {
         });
     }
 
-    public UXToolkit getUXToolkit(){
-        return mUXToolkit;
-    }
 
+    @NonNull
     public LayoutInflater getLayoutInflater(){
         if (mLayoutInflater == null)
             mLayoutInflater = LayoutInflater.from(this);
@@ -195,6 +278,9 @@ public abstract class CustomActivity extends AppCompatActivity {
 
     protected LocationService getLocationService(){
         return mLocationService;
+    }
+    public UXToolkit getUXToolkit(){
+        return mUXToolkit;
     }
 
     public void addLocationChangeGlobalCallback(String index, ILocationChangeCallback callback) {
@@ -252,14 +338,34 @@ public abstract class CustomActivity extends AppCompatActivity {
 
     protected void startLocationService(){
         Log.d(TAG, "startLocationService: Starting location service");
+        if (mLocationServiceConnection == null) {
+            mLocationServiceConnection = new ServiceConnection() {
+                @Override
+                public void onServiceConnected(ComponentName name, IBinder service) {
+                    LocationService.LocationServiceBinder binder = (LocationService.LocationServiceBinder) service;
+                    mLocationService = binder.getService();
+
+                    if (!mLocationService.isNetworkEnabled() && !mLocationService.isGPSEnabled())
+                        showAlertLocationSettings();
+
+                    if (mAfterLocationServiceStartCallback != null)
+                        mAfterLocationServiceStartCallback.run();
+                }
+
+                @Override
+                public void onServiceDisconnected(ComponentName name) {
+                    mLocationService = null;
+                    USING_LOCATION_SERVICE = false;
+                }
+            };
+        }
+
         if (mLocationService == null) {
-            if (locationServiceIntent == null)
-                locationServiceIntent = new Intent(this, LocationService.class);
-
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O)
-                startForegroundService(locationServiceIntent);
+                startForegroundService(new Intent(this, LocationService.class));
 
-            IS_LOCATION_SERVICE_BOUND = bindService(locationServiceIntent, mLocationServiceConnection, Context.BIND_AUTO_CREATE);
+            IS_LOCATION_SERVICE_BOUND = bindService( new Intent(this, LocationService.class),
+                    mLocationServiceConnection, Context.BIND_AUTO_CREATE);
         }
 
         IntentFilter intentFilter = new IntentFilter(LocationService.BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED);
@@ -276,20 +382,10 @@ public abstract class CustomActivity extends AppCompatActivity {
                     unbindService(mLocationServiceConnection);
                     IS_LOCATION_SERVICE_BOUND = false;
                 }
-                stopService(locationServiceIntent);
+                stopService(new Intent(this, LocationService.class));
             }
             USING_LOCATION_SERVICE = false;
         }
-    }
-
-    protected Location getLocation(){
-        if (mLocationService == null) {
-            if (LocationService.hasPermissions(this)) {
-                startLocationService();
-            } else
-                showAlertLocationSettings();
-        }
-        return mLocationService.getLocation();
     }
 
     public void verifyCurrentLocation(@Nullable ILocationChangeCallback callback){
@@ -330,77 +426,6 @@ public abstract class CustomActivity extends AppCompatActivity {
         } else {
             callback.onLocationChange(mLocationService.getLocation());
         }
-    }
-
-    protected void setActivityTitle(@NonNull String title, @Nullable String subtitle){
-        if(actionBar != null){
-            Spanned htm = Html.fromHtml(title);
-            ((TextView) actionBar.getCustomView().findViewById(R.id.tv_1)).setText(htm);
-            if(subtitle != null)
-                ((TextView) actionBar.getCustomView().findViewById(R.id.tv_2)).setText(subtitle);
-            else
-                ((TextView) actionBar.getCustomView().findViewById(R.id.tv_2)).setVisibility(View.INVISIBLE);
-        }{
-            Objects.requireNonNull(getSupportActionBar())
-                    .setTitle(title);
-        }
-    }
-
-    protected void setActivityTitle(int title, int subtitle){
-        setActivityTitle(getString(title),getString(subtitle));
-    }
-
-    protected void setActivityTitle(@NonNull String subtitle){
-        setActivityTitle(getString(R.string.app_name),subtitle);
-    }
-
-    protected void setActivityTitle(int subtitle){
-        setActivityTitle(getString(R.string.app_name),getString(subtitle));
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == PERMISSIONS_REQUEST_CODE_LOCATION) {
-            if (grantResults.length == 0 || grantResults[0] == PackageManager.PERMISSION_DENIED) {
-                showAlertAppPermissionsSetting();
-            }
-        }
-    }
-
-    protected boolean hasAllPermissions(){
-        boolean has = true;
-        for (String perm : mPermissions)
-            has &= ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
-
-        return has && mFileManager.hasPermissions();
-    }
-
-    protected void checkAllPermissions() {
-        boolean proceed = hasAllPermissions();
-        if (!proceed) {
-            for (String perm : mPermissions)
-                proceed = proceed | ActivityCompat.shouldShowRequestPermissionRationale(this, perm);
-            if (proceed) {
-                mUXToolkit.buildAlertDialogue(
-                        getString(R.string.alert_dialog_location_storage_title)
-                        , getString(R.string.alert_dialog_location_storage_message)
-                        , getString(R.string.label_btn_ok),
-                        this::requestAllPermissions)
-                        .show();
-            } else {
-                // No explanation needed, we can request the permission.
-                requestAllPermissions();
-            }
-        }
-    }
-
-    private void requestAllPermissions(){
-        ActivityCompat.requestPermissions(
-                this,
-                mPermissions,
-                PERMISSIONS_REQUEST_CODE_LOCATION
-        );
     }
 
     protected void showAlertAppPermissionsSetting(){

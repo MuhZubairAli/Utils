@@ -30,7 +30,7 @@ public class FileManager {
     private final Activity context;
     // Storage Permissions
     private final int REQUEST_EXTERNAL_STORAGE_CODE = 1;
-    private final String[] PERMISSIONS_STORAGE = {
+    private static final String[] PERMISSIONS_STORAGE = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
@@ -46,7 +46,7 @@ public class FileManager {
      * Returns true if has all permissions other wise returns false which indicates
      * that one or more permissions regarding storage are not granted
      */
-    public boolean hasPermissions() {
+    public static boolean hasPermissions(Context context) {
         int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
         int permission2 = ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE);
 
