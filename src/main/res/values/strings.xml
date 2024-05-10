@@ -5,6 +5,7 @@
     <string name="label_settings">Settings</string>
     <string name="label_btn_cancel">Cancel</string>
     <string name="label_btn_ok">OK</string>
+    <string name="label_btn_proceed">Proceed</string>
 
     <string name="title_default_confirm_dialogue">Attention!</string>
     <string name="title_default_alert_dialogue">Alert!</string>
@@ -20,6 +21,8 @@
     <string name="alert_dialog_all_permissions_message">All permissions must be granted to the app, Click Settings to open app settings and allow all permissions.</string>
 
     <!-- Permissions Setting location and storage Alert string -->
+    <string name="alert_dialog_permission_require_all_title">Grant All Permissions</string>
+    <string name="alert_dialog_permission_require_all_message">This application has not been granted all the permissions which are required to work without any issue</string>
     <string name="alert_dialog_location_storage_title">Location and Storage Permissions Required</string>
     <string name="alert_dialog_location_storage_message">Allow access to location and storage functionality in order to get current location and read / write backup.</string>
 
