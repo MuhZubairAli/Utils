@@ -1,6 +1,7 @@
 package pk.gov.pbs.utils;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -28,6 +29,7 @@ import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.lifecycle.Lifecycle;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -63,6 +65,7 @@ public abstract class CustomActivity extends AppCompatActivity {
     private static byte mLocationAttachAttempts = 0;
 
     private final List<String> mPermissions = new ArrayList<>();
+    private final List<String> mSpecialPermissions = new ArrayList<>(5);
 
     private LayoutInflater mLayoutInflater;
     protected UXToolkit mUXToolkit;
@@ -116,22 +119,49 @@ public abstract class CustomActivity extends AppCompatActivity {
             for (String perm : askAgain)
                 showRationale = showRationale | ActivityCompat.shouldShowRequestPermissionRationale(this, perm);
 
-            String[] askAgainArr = new String[askAgain.size()];
-            askAgain.toArray(askAgainArr);
-
             if (showRationale) {
                 mUXToolkit.buildAlertDialogue(
                         getString(R.string.alert_dialog_permission_require_all_title)
                         , getString(R.string.alert_dialog_permission_require_all_message)
                         , getString(R.string.label_btn_proceed),
-                        () -> requestPermissions(PERMISSIONS_REQUEST_SECOND, askAgainArr)).show();
+                        () -> requestPermissions(PERMISSIONS_REQUEST_SECOND, askAgain.toArray(new String[0]))).show();
             } else {
-                // No explanation needed, we can request the permissions.
-                requestPermissions(PERMISSIONS_REQUEST_SECOND, askAgainArr);
+                // No explanation needed, we can request the permissions..
+                requestPermissions(PERMISSIONS_REQUEST_SECOND, askAgain.toArray(new String[0]));
             }
         } else if (requestCode == PERMISSIONS_REQUEST_SECOND && missingPermission) {
-            hc++;
-            //showAlertAppPermissionsSetting();
+            showAlertAppPermissionsSetting();
+        }
+    }
+
+    private void initialize(){
+        mUXToolkit = new UXToolkit(this);
+        mFileManager = new FileManager(this.getApplicationContext());
+
+        GPS_PROVIDER_ACCESS = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                showAlertLocationSettings();
+            }
+        };
+
+        mPermissions.addAll(Arrays.asList(
+                Manifest.permission.INTERNET,
+                Manifest.permission.ACCESS_NETWORK_STATE,
+                Manifest.permission.ACCESS_WIFI_STATE,
+                Manifest.permission.READ_PHONE_STATE)
+        );
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            mPermissions.add(Manifest.permission.FOREGROUND_SERVICE);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            mSpecialPermissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            mSpecialPermissions.add(Manifest.permission.MANAGE_EXTERNAL_STORAGE);
         }
     }
 
@@ -161,21 +191,42 @@ public abstract class CustomActivity extends AppCompatActivity {
         return has;
     }
 
-    private String[] getDeniedPermissions(){
+    private String[] getSpecialPermissions(){
+        return mSpecialPermissions.toArray(new String[0]);
+    }
+
+    private String[] getAskablePermissions(){
+        List<String> permission = Arrays.asList(getDeniedPermissions());
+        for (String perm : mSpecialPermissions)
+            permission.remove(perm);
+        return permission.toArray(new String[0]);
+    }
+
+    protected String[] getDeniedPermissions(){
         List<String> denied = new ArrayList<>();
 
         for (String perm : getAllPermissions()) {
             if (ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_DENIED)
                 denied.add(perm);
         }
-        if (denied.size() > 0){
+
+        if (!denied.isEmpty()){
             return denied.toArray(new String[0]);
         }
 
         return null;
     }
 
-    private void requestPermissions(int requestCode, String[] permissions){
+    protected void checkAllPermissions() {
+        String[] perms = getAskablePermissions();
+        if (perms.length > 0)
+            requestPermissions(
+                    CustomActivity.PERMISSIONS_REQUEST_FIRST,
+                    perms
+            );
+    }
+
+    protected void requestPermissions(int requestCode, String[] permissions){
         ActivityCompat.requestPermissions(
                 this,
                 permissions,
@@ -183,40 +234,12 @@ public abstract class CustomActivity extends AppCompatActivity {
         );
     }
 
-    protected void checkAllPermissions() {
-        String[] deniedPerms = getDeniedPermissions();
-        if (deniedPerms != null)
-            requestPermissions(CustomActivity.PERMISSIONS_REQUEST_FIRST, deniedPerms);
-    }
-
-    //only effective when call from onCreate()
-    //because mPermission is consumed in onPostResume()
+    //only call this from Activity construction
+    //because mPermission is consumed in onCreate()
     protected void includePermission(String permission){
+        if(this.getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.CREATED))
+            throw new RuntimeException("In order to include new permission, call includePermission(String) from activity constructor.");
         mPermissions.add(permission);
-    }
-
-    private void initialize(){
-        mUXToolkit = new UXToolkit(this);
-        mFileManager = new FileManager(this.getApplicationContext());
-
-        GPS_PROVIDER_ACCESS = new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                showAlertLocationSettings();
-            }
-        };
-
-        mPermissions.addAll(Arrays.asList(
-                Manifest.permission.INTERNET,
-                Manifest.permission.ACCESS_NETWORK_STATE,
-                Manifest.permission.ACCESS_WIFI_STATE,
-                Manifest.permission.READ_PHONE_STATE)
-        );
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            mPermissions.add(Manifest.permission.FOREGROUND_SERVICE);
-        }
-
     }
 
     protected void setActivityTitle(@NonNull String title, @Nullable String subtitle){
