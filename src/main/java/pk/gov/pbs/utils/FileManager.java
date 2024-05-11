@@ -27,16 +27,25 @@ import java.util.ArrayList;
 
 public class FileManager {
     private final String TAG = "FileUtils";
-    private final Activity context;
-    // Storage Permissions
-    private final int REQUEST_EXTERNAL_STORAGE_CODE = 1;
-    private static final String[] PERMISSIONS_STORAGE = {
+    private static final int REQUEST_EXTERNAL_STORAGE_CODE = 20;
+    private static final String[] PERMISSIONS_REQUIRED = {
             Manifest.permission.READ_EXTERNAL_STORAGE,
             Manifest.permission.WRITE_EXTERNAL_STORAGE
     };
+    protected Context mContext;
 
-    public FileManager(Activity ctx){
-        context = ctx;
+    public FileManager(Context context){
+        this.mContext = context;
+    }
+
+    public static String[] getPermissionsRequired(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            String[] permissions = new String[PERMISSIONS_REQUIRED.length + 1];
+            System.arraycopy(PERMISSIONS_REQUIRED, 0, permissions, 0, PERMISSIONS_REQUIRED.length);
+            permissions[PERMISSIONS_REQUIRED.length] = Manifest.permission.MANAGE_EXTERNAL_STORAGE;
+            return permissions;
+        }
+        return PERMISSIONS_REQUIRED;
     }
 
     /**
@@ -47,36 +56,29 @@ public class FileManager {
      * that one or more permissions regarding storage are not granted
      */
     public static boolean hasPermissions(Context context) {
-        int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-        int permission2 = ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE);
+        boolean has = true;
+        for (String perm : getPermissionsRequired())
+            has = has & ActivityCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED;
 
-        if (permission1 != PackageManager.PERMISSION_GRANTED || permission2 != PackageManager.PERMISSION_GRANTED
-        || (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()))
-            return false;
-
-        return true;
+        return has && (Build.VERSION.SDK_INT < Build.VERSION_CODES.R || Environment.isExternalStorageManager());
     }
 
     /**
      * Requests for all storage related permissions
      * For API >= 30 it opens up the activity to allow current app the permission to manage all files
      */
-    public void requestPermissions(){
-        StaticUtils.getHandler().post(()->{
-            int permission1 = ActivityCompat.checkSelfPermission(context, Manifest.permission.WRITE_EXTERNAL_STORAGE);
-            int permission2 = ActivityCompat.checkSelfPermission(context, Manifest.permission.READ_EXTERNAL_STORAGE);
-            if (permission1 != PackageManager.PERMISSION_GRANTED || permission2 != PackageManager.PERMISSION_GRANTED) {
-                ActivityCompat.requestPermissions(
-                        context,
-                        PERMISSIONS_STORAGE,
-                        REQUEST_EXTERNAL_STORAGE_CODE
-                );
-            }
+    public static void requestPermissions(Activity context){
+        if (!hasPermissions(context)) {
+            ActivityCompat.requestPermissions(
+                    context,
+                    getPermissionsRequired(),
+                    REQUEST_EXTERNAL_STORAGE_CODE
+            );
+        }
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                StaticUtils.getHandler().post(this::requestForFileManagerPermission);
-            }
-        });
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            requestForFileManagerPermission(context);
+        }
     }
 
     /**
@@ -85,19 +87,19 @@ public class FileManager {
      * This is required for CRUD operations
      */
     @RequiresApi(api = Build.VERSION_CODES.R)
-    protected void requestForFileManagerPermission(){
+    public static void requestForFileManagerPermission(Context context){
+        StaticUtils.getHandler().post(()->{
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                Toast.makeText(context, "On API 30 and above permission to manage all files is required, Please enable the option of \'Allow access to manage all files\'.", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()){
             Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION);
             Uri uri = Uri.fromParts("package", context.getPackageName(), null);
             intent.setData(uri);
             context.startActivity(intent);
         }
-
-        StaticUtils.getHandler().post(()->{
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-                Toast.makeText(context, "On API 30 and above permission to manage all files is required, Please enable the option of \'Allow access to manage all files\'.", Toast.LENGTH_SHORT).show();
-            }
-        });
     }
     /**
      * @param mode :
@@ -118,7 +120,7 @@ public class FileManager {
             //File file = new File(context.getFilesDir(), fileName);
             //FileOutputStream fos = new FileOutputStream(file);
 
-            FileOutputStream fos = context.openFileOutput(fileName, mode);
+            FileOutputStream fos = mContext.openFileOutput(fileName, mode);
 
             // Instantiate a stream writer.
             OutputStreamWriter out = new OutputStreamWriter(fos);
@@ -151,7 +153,7 @@ public class FileManager {
 //            File file = new File(context.getFilesDir(), fileName);
 //            FileInputStream fis = new FileInputStream(file);
 
-            FileInputStream fis = context.openFileInput(fileName);
+            FileInputStream fis = mContext.openFileInput(fileName);
 
             // Instantiate a buffer reader. (Buffer )
             BufferedReader bufferedReader = new BufferedReader(
@@ -179,7 +181,7 @@ public class FileManager {
 
     public boolean deleteFileInternal(String fileName){
         // If the file is saved on internal storage, you can also ask the Context to locate and delete a file by calling deleteFile()
-        return context.deleteFile(fileName);
+        return mContext.deleteFile(fileName);
     }
 
     /* ******************************************************************************************** *
@@ -349,7 +351,7 @@ public class FileManager {
     public void writeFileExternalPrivate(String mainDir, String subFolder, int mode, String fileName, String data){
 
         // Get the directory for the user's private mainDir directory.
-        String directory = context.getExternalFilesDir(mainDir) + File.separator  + subFolder;
+        String directory = mContext.getExternalFilesDir(mainDir) + File.separator  + subFolder;
         File folder = new File(directory);
 
         // If directory doesn't exist, create it.
@@ -388,7 +390,7 @@ public class FileManager {
     }
 
     public String getDirectoryExternalPrivate(String mainDir, String subFolder){
-        return context.getExternalFilesDir(mainDir) + File.separator  + subFolder;
+        return mContext.getExternalFilesDir(mainDir) + File.separator  + subFolder;
     }
 
     public String readFileExternalPrivate(String mainDir, String subFolder, String fileName) {
