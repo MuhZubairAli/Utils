@@ -158,10 +158,6 @@ public abstract class CustomActivity extends AppCompatActivity {
             mPermissions.add(Manifest.permission.FOREGROUND_SERVICE);
         }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            mSpecialPermissions.add(Manifest.permission.ACCESS_BACKGROUND_LOCATION);
-        }
-
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             mSpecialPermissions.add(Manifest.permission.MANAGE_EXTERNAL_STORAGE);
         }
@@ -241,28 +237,16 @@ public abstract class CustomActivity extends AppCompatActivity {
 
     protected void requestSpecialPermissions(){
         for (String perm : mSpecialPermissions){
-            switch (perm) {
-                case Manifest.permission.MANAGE_EXTERNAL_STORAGE:
-                    StaticUtils.getHandler().post(()->{
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
-                            mUXToolkit.showToast("On API 30 and above permission to manage all files is required, Please enable the option of 'Allow access to manage all files'.");
-                        }
+            if (perm.equals(Manifest.permission.MANAGE_EXTERNAL_STORAGE)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                    StaticUtils.getHandler().post(() -> {
+                        mUXToolkit.showToast("On API 30 and above permission to manage all files is required, Please enable the option of 'Allow access to manage all files'.");
                     });
-
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()){
-                        Uri uri = Uri.parse("package:" + this.getPackageName());
-                        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
-                        startActivity(intent);
-                    }
-                    break;
-                case Manifest.permission.ACCESS_BACKGROUND_LOCATION:
-                    if(ActivityCompat.shouldShowRequestPermissionRationale(this, perm))
-                        mUXToolkit.showAlertDialogue("Need Background Location Permission", "Background location access is required to use this application, Kindly select the option of 'Allow all the time'.",
-                                () -> ActivityCompat.requestPermissions(CustomActivity.this, new String[]{perm}, 102)
-                        );
-                    else
-                        ActivityCompat.requestPermissions(this, new String[]{perm}, 102);
-                    break;
+                    Uri uri = Uri.parse("package:" + this.getPackageName());
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
+                    startActivity(intent);
+                }
+            } else { // else if(other special permission) handle requesting of other special permission (if any)
             }
         }
     }
