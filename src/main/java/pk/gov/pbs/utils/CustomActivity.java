@@ -2,6 +2,7 @@ package pk.gov.pbs.utils;
 
 import android.Manifest;
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -15,6 +16,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.text.Html;
@@ -23,6 +25,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -52,7 +55,6 @@ public abstract class CustomActivity extends AppCompatActivity {
                     | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                     | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION;
 
-    private boolean hasPostResumed = false;
     private boolean IS_LOCATION_SERVICE_BOUND = false;
     private boolean USING_LOCATION_SERVICE = false;
     private ActionBar actionBar;
@@ -87,7 +89,6 @@ public abstract class CustomActivity extends AppCompatActivity {
                     showAlertLocationSettings();
             }
         }
-        hasPostResumed = true;
     }
 
     @Override
@@ -130,6 +131,8 @@ public abstract class CustomActivity extends AppCompatActivity {
             }
         } else if (requestCode == PERMISSIONS_REQUEST_SECOND && missingPermission) {
             showAlertAppPermissionsSetting();
+        } else if (!missingPermission && !mSpecialPermissions.isEmpty()){
+            requestSpecialPermissions();
         }
     }
 
@@ -183,23 +186,8 @@ public abstract class CustomActivity extends AppCompatActivity {
         return permissions;
     }
 
-    protected boolean hasAllPermissions(){
-        boolean has = true;
-        for (String perm : getAllPermissions())
-            has &= ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
-        return has;
-    }
-
-    private String[] getSpecialPermissions(){
+    protected String[] getSpecialPermissions(){
         return mSpecialPermissions.toArray(new String[0]);
-    }
-
-    private String[] getAskablePermissions(){
-        ArrayList<String> permission = new ArrayList<>(
-                Arrays.asList(getDeniedPermissions())
-        );
-        permission.removeAll(mSpecialPermissions);
-        return permission.toArray(new String[0]);
     }
 
     protected String[] getDeniedPermissions(){
@@ -217,6 +205,21 @@ public abstract class CustomActivity extends AppCompatActivity {
         return null;
     }
 
+    private String[] getAskablePermissions(){
+        ArrayList<String> permission = new ArrayList<>(
+                Arrays.asList(getDeniedPermissions())
+        );
+        permission.removeAll(mSpecialPermissions);
+        return permission.toArray(new String[0]);
+    }
+
+    protected boolean hasAllPermissions(){
+        boolean has = true;
+        for (String perm : getAllPermissions())
+            has &= ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
+        return has;
+    }
+
     protected void checkAllPermissions() {
         String[] perms = getAskablePermissions();
         if (perms.length > 0)
@@ -224,6 +227,8 @@ public abstract class CustomActivity extends AppCompatActivity {
                     CustomActivity.PERMISSIONS_REQUEST_FIRST,
                     perms
             );
+        else if (!hasAllPermissions())
+            requestSpecialPermissions();
     }
 
     protected void requestPermissions(int requestCode, String[] permissions){
@@ -232,6 +237,34 @@ public abstract class CustomActivity extends AppCompatActivity {
                 permissions,
                 requestCode
         );
+    }
+
+    protected void requestSpecialPermissions(){
+        for (String perm : mSpecialPermissions){
+            switch (perm) {
+                case Manifest.permission.MANAGE_EXTERNAL_STORAGE:
+                    StaticUtils.getHandler().post(()->{
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                            mUXToolkit.showToast("On API 30 and above permission to manage all files is required, Please enable the option of 'Allow access to manage all files'.");
+                        }
+                    });
+
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()){
+                        Uri uri = Uri.parse("package:" + this.getPackageName());
+                        Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
+                        startActivity(intent);
+                    }
+                    break;
+                case Manifest.permission.ACCESS_BACKGROUND_LOCATION:
+                    if(ActivityCompat.shouldShowRequestPermissionRationale(this, perm))
+                        mUXToolkit.showAlertDialogue("Need Background Location Permission", "Background location access is required to use this application, Kindly select the option of 'Allow all the time'.",
+                                () -> ActivityCompat.requestPermissions(CustomActivity.this, new String[]{perm}, 102)
+                        );
+                    else
+                        ActivityCompat.requestPermissions(this, new String[]{perm}, 102);
+                    break;
+            }
+        }
     }
 
     //only call this from Activity construction
