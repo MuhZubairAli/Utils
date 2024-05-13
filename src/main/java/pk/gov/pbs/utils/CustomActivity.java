@@ -77,7 +77,7 @@ public abstract class CustomActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initialize();
-        checkAllPermissions();
+        //checkAllPermissions();
     }
 
     @Override
