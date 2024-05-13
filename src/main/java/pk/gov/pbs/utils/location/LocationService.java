@@ -244,9 +244,7 @@ public class LocationService extends Service implements LocationListener {
                     @Override
                     public void run() {
                             for (String callbackIndex : mOnLocationChangedGlobalCallbacks.keySet()){
-                                StaticUtils.getHandler().post(()-> {
-                                    mOnLocationChangedGlobalCallbacks.get(callbackIndex).onLocationChange(location);
-                                });
+                                mOnLocationChangedGlobalCallbacks.get(callbackIndex).onLocationChange(location);
                             }
                         }
                 })).start();

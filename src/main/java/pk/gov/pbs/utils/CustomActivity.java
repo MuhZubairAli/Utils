@@ -123,7 +123,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                 mUXToolkit.buildAlertDialogue(
                         getString(R.string.alert_dialog_permission_require_all_title)
                         , getString(R.string.alert_dialog_permission_require_all_message)
-                        , getString(R.string.label_btn_proceed),
+                        , getString(R.string.label_btn_request_again),
                         () -> requestPermissions(PERMISSIONS_REQUEST_SECOND, askAgain.toArray(new String[0]))).show();
             } else {
                 // No explanation needed, we can request the permissions..
@@ -131,7 +131,9 @@ public abstract class CustomActivity extends AppCompatActivity {
             }
         } else if (requestCode == PERMISSIONS_REQUEST_SECOND && missingPermission) {
             showAlertAppPermissionsSetting();
-        } else if (!missingPermission && !mSpecialPermissions.isEmpty()){
+        }
+
+        if (!mSpecialPermissions.isEmpty()){
             requestSpecialPermissions();
         }
     }
@@ -217,6 +219,9 @@ public abstract class CustomActivity extends AppCompatActivity {
     }
 
     protected void checkAllPermissions() {
+        if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.CREATED))
+            throw new RuntimeException("This method must be called from onCreate method only, other wise it will cause infinite recursion");
+
         String[] perms = getAskablePermissions();
         if (perms.length > 0)
             requestPermissions(
@@ -255,7 +260,7 @@ public abstract class CustomActivity extends AppCompatActivity {
     //because mPermission is consumed in onCreate()
     protected void includePermission(String permission){
         if(this.getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.CREATED))
-            throw new RuntimeException("In order to include new permission, call includePermission(String) from activity constructor.");
+            throw new RuntimeException("In order to include new permission ["+permission+"], call includePermission(String) from activity constructor.");
         mPermissions.add(permission);
     }
 
@@ -353,13 +358,11 @@ public abstract class CustomActivity extends AppCompatActivity {
                     getLocationService().addLocationChangeGlobalCallback(index, callback);
                 } catch (InvalidIndexException e) {
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                 }
             } else {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
                     addLocationChangeGlobalCallback(index, callback);
@@ -367,6 +370,12 @@ public abstract class CustomActivity extends AppCompatActivity {
         },1000);
     }
 
+    /**
+     * this helper method attaches LocationChange callback with location service
+     * it will attempt 5 times with 1 sec gap if locationService is not available then throws exception
+     * it will not start location service (only waits 5 secs if location service is starting)
+     * @param callback OTC to be attached with the service
+     */
     public void addLocationChangeCallback(ILocationChangeCallback callback) {
         StaticUtils.getHandler().postDelayed(()-> {
             if (getLocationService() != null) {
@@ -375,7 +384,6 @@ public abstract class CustomActivity extends AppCompatActivity {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
                     addLocationChangeCallback(callback);
@@ -383,6 +391,12 @@ public abstract class CustomActivity extends AppCompatActivity {
         }, 1000);
     }
 
+    /**
+     * this helper method attaches OTC with location service
+     * it will attempt 5 times with 1 sec gap if locationService is not available then throws exception
+     * it will not start location service (only waits 5 secs if location service is starting)
+     * @param callback OTC to be attached with the service
+     */
     public void addLocationChangedOneTimeCallback(ILocationChangeCallback callback) {
         StaticUtils.getHandler().postDelayed(()-> {
             if (getLocationService() != null) {
@@ -391,7 +405,6 @@ public abstract class CustomActivity extends AppCompatActivity {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
                     addLocationChangedOneTimeCallback(callback);
@@ -498,7 +511,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                     dialogLocationSettings = mUXToolkit.buildAlertDialogue(
                             getString(R.string.alert_dialog_all_permissions_title)
                             ,getString(R.string.alert_dialog_all_permissions_message)
-                            ,getString(R.string.label_settings)
+                            ,getString(R.string.label_btn_permissions_settings)
                             , () -> {
                                 final Intent i = new Intent();
                                 i.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
@@ -527,7 +540,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                     dialogLocationSettings = mUXToolkit.buildAlertDialogue(
                             getString(R.string.alert_dialog_gps_title)
                             ,getString(R.string.alert_dialog_gps_message)
-                            ,getString(R.string.label_btn_settings)
+                            ,getString(R.string.label_btn_location_settings)
                             , () -> {
                                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                                 startActivity(intent);
