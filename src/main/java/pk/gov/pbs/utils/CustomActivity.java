@@ -71,7 +71,6 @@ public abstract class CustomActivity extends AppCompatActivity {
     protected UXToolkit mUXToolkit;
     protected FileManager mFileManager;
 
-    int hc = 0;
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -196,9 +195,10 @@ public abstract class CustomActivity extends AppCompatActivity {
     }
 
     private String[] getAskablePermissions(){
-        List<String> permission = Arrays.asList(getDeniedPermissions());
-        for (String perm : mSpecialPermissions)
-            permission.remove(perm);
+        ArrayList<String> permission = new ArrayList<>(
+                Arrays.asList(getDeniedPermissions())
+        );
+        permission.removeAll(mSpecialPermissions);
         return permission.toArray(new String[0]);
     }
 
