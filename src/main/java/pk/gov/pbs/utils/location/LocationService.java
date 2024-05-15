@@ -12,6 +12,7 @@ import android.location.Location;
 import android.location.LocationListener;
 import android.location.LocationManager;
 import android.os.Binder;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.util.Log;
@@ -36,8 +37,8 @@ public class LocationService extends Service implements LocationListener {
     public static final String BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED = Constants.Location.BROADCAST_RECEIVER_ACTION_PROVIDER_DISABLED;
     public static final String BROADCAST_RECEIVER_ACTION_LOCATION_CHANGED = Constants.Location.BROADCAST_RECEIVER_ACTION_LOCATION_CHANGED;
     public static final String BROADCAST_EXTRA_LOCATION_DATA = Constants.Location.BROADCAST_EXTRA_LOCATION_DATA;
-
     private static final int SERVICE_NOTIFICATION_ID = 1;
+    private static final int PERMISSION_REQUEST_CODE = 10;
     private HashMap<String, List<ILocationChangeCallback>> mOnLocationChangedLocalCallbacks;
     private HashMap<String, ILocationChangeCallback> mOnLocationChangedGlobalCallbacks;
     private List<ILocationChangeCallback> mListOTCs;
@@ -45,22 +46,36 @@ public class LocationService extends Service implements LocationListener {
     private static final long MIN_DISTANCE_CHANGE_FOR_UPDATES = 10;
     private static final long MIN_TIME_BW_UPDATES = 1000 * 60 * 2; // 2 minutes
 
-    protected boolean isGPSEnabled = false;
-    protected boolean isNetworkEnabled = false;
-
     protected LocationManager mLocationManager;
     protected Location mLocation;
 
-    public static boolean hasPermissions(Context context){
-        return ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
-                && ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    private static final String[] PERMISSIONS_REQUIRED = new String[]{
+            Manifest.permission.ACCESS_FINE_LOCATION,
+            Manifest.permission.ACCESS_COARSE_LOCATION
+    };
+
+    public static String[] getPermissionsRequired(){
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            String[] permissions = new String[PERMISSIONS_REQUIRED.length + 1];
+            System.arraycopy(PERMISSIONS_REQUIRED, 0, permissions, 0, PERMISSIONS_REQUIRED.length);
+            permissions[PERMISSIONS_REQUIRED.length] = Manifest.permission.ACCESS_BACKGROUND_LOCATION;
+            return permissions;
+        }
+        return PERMISSIONS_REQUIRED;
     }
 
-    public static void requestPermissions(Activity context){
+    public static boolean hasPermissions(Context context){
+        boolean has = true;
+        for (String perm : getPermissionsRequired())
+            has = has && ActivityCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED;
+        return has;
+    }
+
+    public static void requestPermissions(Activity activity){
         ActivityCompat.requestPermissions(
-                context,
-                new String[]{Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION},
-                100
+                activity,
+                getPermissionsRequired(),
+                PERMISSION_REQUEST_CODE
         );
     }
 
@@ -71,11 +86,7 @@ public class LocationService extends Service implements LocationListener {
 
         super.onCreate();
         mLocationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
-        isGPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-
         mLocation = getLastKnownLocation();
-
         requestLocationUpdates();
     }
 
@@ -233,9 +244,7 @@ public class LocationService extends Service implements LocationListener {
                     @Override
                     public void run() {
                             for (String callbackIndex : mOnLocationChangedGlobalCallbacks.keySet()){
-                                StaticUtils.getHandler().post(()-> {
-                                    mOnLocationChangedGlobalCallbacks.get(callbackIndex).onLocationChange(location);
-                                });
+                                mOnLocationChangedGlobalCallbacks.get(callbackIndex).onLocationChange(location);
                             }
                         }
                 })).start();
@@ -244,13 +253,11 @@ public class LocationService extends Service implements LocationListener {
     }
 
     public boolean isGPSEnabled() {
-        isGPSEnabled = mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
-        return isGPSEnabled;
+        return mLocationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
     }
 
     public boolean isNetworkEnabled() {
-        isNetworkEnabled = mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
-        return isNetworkEnabled;
+        return mLocationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
     }
 
     @SuppressLint("MissingPermission")
@@ -259,8 +266,8 @@ public class LocationService extends Service implements LocationListener {
             Log.d(TAG, "requestLocationUpdates: requesting location updates");
 
         if (hasPermissions(this)) {
-            if (isGPSEnabled || isNetworkEnabled) {
-                if (isNetworkEnabled) {
+            if (isGPSEnabled() || isNetworkEnabled()) {
+                if (isNetworkEnabled()) {
                     mLocationManager.requestLocationUpdates(
                             LocationManager.NETWORK_PROVIDER,
                             MIN_TIME_BW_UPDATES,
@@ -268,7 +275,7 @@ public class LocationService extends Service implements LocationListener {
                             this);
                 }
 
-                if (isGPSEnabled){
+                if (isGPSEnabled()){
                     mLocationManager.requestLocationUpdates(
                             LocationManager.GPS_PROVIDER,
                             MIN_TIME_BW_UPDATES,

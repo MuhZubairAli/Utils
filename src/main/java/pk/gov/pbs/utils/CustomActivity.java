@@ -1,6 +1,8 @@
 package pk.gov.pbs.utils;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.BroadcastReceiver;
 import android.content.ComponentName;
@@ -14,6 +16,7 @@ import android.location.LocationManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.provider.Settings;
 import android.text.Html;
@@ -22,12 +25,14 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
+import androidx.lifecycle.Lifecycle;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -62,6 +67,7 @@ public abstract class CustomActivity extends AppCompatActivity {
     private static byte mLocationAttachAttempts = 0;
 
     private final List<String> mPermissions = new ArrayList<>();
+    private final List<String> mSpecialPermissions = new ArrayList<>(5);
 
     private LayoutInflater mLayoutInflater;
     protected UXToolkit mUXToolkit;
@@ -71,90 +77,10 @@ public abstract class CustomActivity extends AppCompatActivity {
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         initialize();
+        //checkAllPermissions();
     }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        checkAllPermissions();
-    }
-
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (getLocationService() != null)
-            getLocationService().clearLocalCallbacks(this);
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-
-        boolean missingPermission = false;
-        for (int gr : grantResults)
-            missingPermission = missingPermission | gr == PackageManager.PERMISSION_DENIED;
-
-        if (requestCode == PERMISSIONS_REQUEST_FIRST && missingPermission) {
-            boolean showRationale = false;
-            for (String perm : permissions)
-                showRationale = showRationale | ActivityCompat.shouldShowRequestPermissionRationale(this, perm);
-
-            if (showRationale) {
-                mUXToolkit.buildAlertDialogue(
-                        getString(R.string.alert_dialog_permission_require_all_title)
-                        , getString(R.string.alert_dialog_permission_require_all_message)
-                        , getString(R.string.label_btn_proceed),
-                        () -> requestAllPermissions(PERMISSIONS_REQUEST_SECOND)).show();
-            } else {
-                // No explanation needed, we can request the permissions.
-                requestAllPermissions(PERMISSIONS_REQUEST_SECOND);
-            }
-        } else if (requestCode == PERMISSIONS_REQUEST_SECOND && missingPermission) {
-            showAlertAppPermissionsSetting();
-        }
-    }
-
-
-    protected void checkAllPermissions(){
-        checkAllPermissions(PERMISSIONS_REQUEST_FIRST);
-    }
-
-    protected void checkAllPermissions(int requestCode) {
-        if (!hasAllPermissions())
-            requestAllPermissions(requestCode);
-    }
-
-    protected boolean hasAllPermissions(){
-        boolean has = true;
-        for (String perm : mPermissions)
-            has &= ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
-
-        return has && FileManager.hasPermissions(this) && LocationService.hasPermissions(this);
-    }
-
-    private void requestAllPermissions(){
-        requestAllPermissions(PERMISSIONS_REQUEST_FIRST);
-    }
-
-    private void requestAllPermissions(int requestCode){
-        String[] permissions = new String[mPermissions.size()];
-        for (int i = 0; i < mPermissions.size(); i++)
-            permissions[i] = mPermissions.get(i);
-        ActivityCompat.requestPermissions(
-                this,
-                permissions,
-                requestCode
-        );
-    }
-
-    //only effective when call from onCreate()
-    //because mPermission is consumed in onResume()
-    protected void askPermissionFor(String permission){
-        mPermissions.add(permission);
-    }
-
-    /****************
-    //@Override
     protected void onPostResume() {
         super.onPostResume();
         if (USING_LOCATION_SERVICE) {
@@ -168,14 +94,53 @@ public abstract class CustomActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
-        if (USING_LOCATION_SERVICE)
+        if (USING_LOCATION_SERVICE) {
+            if (getLocationService() != null)
+                getLocationService().
+                        clearLocalCallbacks(this);
             stopLocationService();
+        }
     }
-    //************/
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        List<String> askAgain = new ArrayList<>();
+        boolean missingPermission = false;
+        for (int i = 0; i < grantResults.length; i++) {
+            missingPermission = missingPermission | grantResults[i] == PackageManager.PERMISSION_DENIED;
+            if (grantResults[i] == PackageManager.PERMISSION_DENIED)
+                askAgain.add(permissions[i]);
+        }
+
+        if (requestCode == PERMISSIONS_REQUEST_FIRST && missingPermission) {
+            boolean showRationale = false;
+            for (String perm : askAgain)
+                showRationale = showRationale | ActivityCompat.shouldShowRequestPermissionRationale(this, perm);
+
+            if (showRationale) {
+                mUXToolkit.buildAlertDialogue(
+                        getString(R.string.alert_dialog_permission_require_all_title)
+                        , getString(R.string.alert_dialog_permission_require_all_message)
+                        , getString(R.string.label_btn_request_again),
+                        () -> requestPermissions(PERMISSIONS_REQUEST_SECOND, askAgain.toArray(new String[0]))).show();
+            } else {
+                // No explanation needed, we can request the permissions..
+                requestPermissions(PERMISSIONS_REQUEST_SECOND, askAgain.toArray(new String[0]));
+            }
+        } else if (requestCode == PERMISSIONS_REQUEST_SECOND && missingPermission) {
+            showAlertAppPermissionsSetting();
+        }
+
+        if (!mSpecialPermissions.isEmpty()){
+            requestSpecialPermissions();
+        }
+    }
 
     private void initialize(){
         mUXToolkit = new UXToolkit(this);
-        mFileManager = new FileManager(this);
+        mFileManager = new FileManager(this.getApplicationContext());
 
         GPS_PROVIDER_ACCESS = new BroadcastReceiver() {
             @Override
@@ -185,15 +150,118 @@ public abstract class CustomActivity extends AppCompatActivity {
         };
 
         mPermissions.addAll(Arrays.asList(
+                Manifest.permission.INTERNET,
                 Manifest.permission.ACCESS_NETWORK_STATE,
-                Manifest.permission.ACCESS_WIFI_STATE)
+                Manifest.permission.ACCESS_WIFI_STATE,
+                Manifest.permission.READ_PHONE_STATE)
         );
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            mPermissions.add(Manifest.permission.MANAGE_EXTERNAL_STORAGE);
-            mPermissions.add(Manifest.permission.READ_PRECISE_PHONE_STATE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            mPermissions.add(Manifest.permission.FOREGROUND_SERVICE);
         }
 
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            mSpecialPermissions.add(Manifest.permission.MANAGE_EXTERNAL_STORAGE);
+        }
+    }
+
+    private String[] getAllPermissions(){
+        String[] permissions = new String[
+                mPermissions.size() +
+                LocationService.getPermissionsRequired().length +
+                FileManager.getPermissionsRequired().length
+        ];
+        int i = 0;
+        for (String perm : mPermissions)
+            permissions[i++] = perm;
+
+        for (String perm : LocationService.getPermissionsRequired())
+            permissions[i++] = perm;
+
+        for (String perm : FileManager.getPermissionsRequired())
+            permissions[i++] = perm;
+
+        return permissions;
+    }
+
+    protected String[] getSpecialPermissions(){
+        return mSpecialPermissions.toArray(new String[0]);
+    }
+
+    protected String[] getDeniedPermissions(){
+        List<String> denied = new ArrayList<>();
+
+        for (String perm : getAllPermissions()) {
+            if (ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_DENIED)
+                denied.add(perm);
+        }
+
+        if (!denied.isEmpty()){
+            return denied.toArray(new String[0]);
+        }
+
+        return null;
+    }
+
+    private String[] getAskablePermissions(){
+        ArrayList<String> permission = new ArrayList<>(
+                Arrays.asList(getDeniedPermissions())
+        );
+        permission.removeAll(mSpecialPermissions);
+        return permission.toArray(new String[0]);
+    }
+
+    protected boolean hasAllPermissions(){
+        boolean has = true;
+        for (String perm : getAllPermissions())
+            has &= ActivityCompat.checkSelfPermission(this, perm) == PackageManager.PERMISSION_GRANTED;
+        return has;
+    }
+
+    protected void checkAllPermissions() {
+        if (getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.CREATED))
+            throw new RuntimeException("This method must be called from onCreate method only, other wise it will cause infinite recursion");
+
+        String[] perms = getAskablePermissions();
+        if (perms.length > 0)
+            requestPermissions(
+                    CustomActivity.PERMISSIONS_REQUEST_FIRST,
+                    perms
+            );
+        else if (!hasAllPermissions())
+            requestSpecialPermissions();
+    }
+
+    protected void requestPermissions(int requestCode, String[] permissions){
+        ActivityCompat.requestPermissions(
+                this,
+                permissions,
+                requestCode
+        );
+    }
+
+    protected void requestSpecialPermissions(){
+        for (String perm : mSpecialPermissions){
+            if (perm.equals(Manifest.permission.MANAGE_EXTERNAL_STORAGE)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && !Environment.isExternalStorageManager()) {
+                    StaticUtils.getHandler().post(() -> {
+                        mUXToolkit.showToast("On API 30 and above permission to manage all files is required, Please enable the option of 'Allow access to manage all files'.");
+                    });
+                    Uri uri = Uri.parse("package:" + this.getPackageName());
+                    Intent intent = new Intent(Settings.ACTION_MANAGE_APP_ALL_FILES_ACCESS_PERMISSION, uri);
+                    startActivity(intent);
+                }
+            } else { // else if(other special permission) handle requesting of other special permission (if any)
+            }
+        }
+    }
+
+    //only call this from Activity construction
+    //because mPermission is consumed in onCreate()
+    protected void includePermission(String permission){
+        if(this.getLifecycle().getCurrentState().isAtLeast(Lifecycle.State.CREATED))
+            throw new RuntimeException("In order to include new permission ["+permission+"], call includePermission(String) from activity constructor.");
+        mPermissions.add(permission);
     }
 
     protected void setActivityTitle(@NonNull String title, @Nullable String subtitle){
@@ -290,13 +358,11 @@ public abstract class CustomActivity extends AppCompatActivity {
                     getLocationService().addLocationChangeGlobalCallback(index, callback);
                 } catch (InvalidIndexException e) {
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                 }
             } else {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
                     addLocationChangeGlobalCallback(index, callback);
@@ -304,6 +370,12 @@ public abstract class CustomActivity extends AppCompatActivity {
         },1000);
     }
 
+    /**
+     * this helper method attaches LocationChange callback with location service
+     * it will attempt 5 times with 1 sec gap if locationService is not available then throws exception
+     * it will not start location service (only waits 5 secs if location service is starting)
+     * @param callback OTC to be attached with the service
+     */
     public void addLocationChangeCallback(ILocationChangeCallback callback) {
         StaticUtils.getHandler().postDelayed(()-> {
             if (getLocationService() != null) {
@@ -312,7 +384,6 @@ public abstract class CustomActivity extends AppCompatActivity {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
                     addLocationChangeCallback(callback);
@@ -320,6 +391,12 @@ public abstract class CustomActivity extends AppCompatActivity {
         }, 1000);
     }
 
+    /**
+     * this helper method attaches OTC with location service
+     * it will attempt 5 times with 1 sec gap if locationService is not available then throws exception
+     * it will not start location service (only waits 5 secs if location service is starting)
+     * @param callback OTC to be attached with the service
+     */
     public void addLocationChangedOneTimeCallback(ILocationChangeCallback callback) {
         StaticUtils.getHandler().postDelayed(()-> {
             if (getLocationService() != null) {
@@ -328,7 +405,6 @@ public abstract class CustomActivity extends AppCompatActivity {
                 if (++mLocationAttachAttempts >= 5) {
                     Exception e =  new Exception("addLocationChangeCallback] - Attempt to add location listener to LocationService failed after 5 tries, Location service has not started, make sure startLocationService() is called before adding listener");
                     ExceptionReporter.handle(e);
-                    Log.e(TAG, e.getMessage(), e);
                     mLocationAttachAttempts = 0;
                 } else
                     addLocationChangedOneTimeCallback(callback);
@@ -435,7 +511,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                     dialogLocationSettings = mUXToolkit.buildAlertDialogue(
                             getString(R.string.alert_dialog_all_permissions_title)
                             ,getString(R.string.alert_dialog_all_permissions_message)
-                            ,getString(R.string.label_settings)
+                            ,getString(R.string.label_btn_permissions_settings)
                             , () -> {
                                 final Intent i = new Intent();
                                 i.setAction(Settings.ACTION_APPLICATION_DETAILS_SETTINGS);
@@ -464,7 +540,7 @@ public abstract class CustomActivity extends AppCompatActivity {
                     dialogLocationSettings = mUXToolkit.buildAlertDialogue(
                             getString(R.string.alert_dialog_gps_title)
                             ,getString(R.string.alert_dialog_gps_message)
-                            ,getString(R.string.label_btn_settings)
+                            ,getString(R.string.label_btn_location_settings)
                             , () -> {
                                 Intent intent = new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS);
                                 startActivity(intent);

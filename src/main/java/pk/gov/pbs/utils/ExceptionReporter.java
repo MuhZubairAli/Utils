@@ -9,7 +9,6 @@ public class ExceptionReporter {
 
     public static void printStackTrace(Throwable exception){
         if (Constants.DEBUG_MODE) {
-            exception.printStackTrace();
             throw new RuntimeException(exception);
         }
     }
