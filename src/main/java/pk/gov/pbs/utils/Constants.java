@@ -4,7 +4,7 @@ import pk.gov.pbs.utils.location.LocationService;
 
 public class Constants {
     public static final String TAG = "[:Utils]";
-    public static final boolean DEBUG_MODE = BuildConfig.DEBUG;
+    public static final boolean DEBUG_MODE = true;
     public static final String INTEGRITY_CHECK_KEY = "!s^&ks_=(a$";
 
     public static final String Notification_Channel_ID = "TDS_Notification_Channel";
