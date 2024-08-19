@@ -25,7 +25,7 @@ public class UXToolkit {
     protected final InputMethodManager mInputMethodManager;
     protected AlertDialog.Builder mDialogBuilder;
     protected ProgressDialog progressDialog;
-
+    private Toast toast;
     public UXToolkit(CustomActivity _context){
         context = _context;
         mInputMethodManager = (InputMethodManager) context.getSystemService(Activity.INPUT_METHOD_SERVICE);
@@ -327,6 +327,12 @@ public class UXToolkit {
         synchronized (this) {
             Toast.makeText(context, htm, Toast.LENGTH_LONG).show();
         }
+    }
+    public void showRepeatSafeToast(String message) {
+        if (toast != null)
+            toast.cancel();
+        toast = Toast.makeText(context, message, Toast.LENGTH_LONG);
+        toast.show();
     }
 
 }
