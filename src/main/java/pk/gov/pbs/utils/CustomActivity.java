@@ -204,8 +204,12 @@ public abstract class CustomActivity extends AppCompatActivity {
     }
 
     private String[] getAskablePermissions(){
+        String[] denied = getDeniedPermissions();
+        if (denied == null)
+            return null;
+
         ArrayList<String> permission = new ArrayList<>(
-                Arrays.asList(getDeniedPermissions())
+                Arrays.asList(denied)
         );
         permission.removeAll(mSpecialPermissions);
         return permission.toArray(new String[0]);
@@ -223,7 +227,7 @@ public abstract class CustomActivity extends AppCompatActivity {
             throw new RuntimeException("This method must be called from onCreate method only, other wise it will cause infinite recursion");
 
         String[] perms = getAskablePermissions();
-        if (perms.length > 0)
+        if (perms != null && perms.length > 0)
             requestPermissions(
                     CustomActivity.PERMISSIONS_REQUEST_FIRST,
                     perms
